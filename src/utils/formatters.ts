@@ -31,13 +31,9 @@ import { TodoList } from "../models/TodoList.js";
  */
 export function formatTodo(todo: Todo): string {
   const statusIcon = todo.status === 'completed' ? '✅' : (todo.status === 'pending' ? '⏳' : '❌');
-  return `
-## ${todo.title} ${statusIcon}
+  return `# TODO List: ${todo.listId}
 
-SeqNo: ${todo.seqno}
-List ID: ${todo.listId}
-Status: ${todo.status}
-  `.trim();
+${todo.seqno}. ${todo.title} (${statusIcon})`;
 }
 
 /**
@@ -54,8 +50,13 @@ export function formatTodoList(todos: Todo[]): string {
     return "No todos found.";
   }
 
-  const todoItems = todos.map(formatTodo).join('\n\n---\n\n');
-  return `# Todo List (${todos.length} items)\n\n${todoItems}`;
+  const listId = todos[0].listId;
+  const todoItems = todos.map(todo => {
+    const statusIcon = todo.status === 'completed' ? '✅' : (todo.status === 'pending' ? '⏳' : '❌');
+    return `${todo.seqno}. ${todo.title} (${statusIcon})`;
+  }).join('\n');
+  
+  return `# TODO List: ${listId} (${todos.length} items)\n\n${todoItems}`;
 }
 
 /**
