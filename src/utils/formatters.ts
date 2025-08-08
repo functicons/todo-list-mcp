@@ -12,6 +12,7 @@
  * - Centralizes presentation concerns in one place
  */
 import { Todo } from "../models/Todo.js";
+import { TodoList } from "../models/TodoList.js";
 
 /**
  * Format a todo item to a readable string representation
@@ -33,6 +34,7 @@ export function formatTodo(todo: Todo): string {
 ## ${todo.title} ${todo.completed ? '✅' : '⏳'}
 
 ID: ${todo.id}
+List ID: ${todo.listId}
 Created: ${new Date(todo.createdAt).toLocaleString()}
 Updated: ${new Date(todo.updatedAt).toLocaleString()}
 
@@ -102,4 +104,37 @@ export function createErrorResponse(message: string) {
     ],
     isError: true,
   };
+}
+
+/**
+ * Format a todo list to a readable string representation
+ * 
+ * @param todoList The TodoList object to format
+ * @returns A markdown-formatted string representation
+ */
+export function formatTodoListInfo(todoList: TodoList): string {
+  return `
+## ${todoList.name}
+
+ID: ${todoList.id}
+Created: ${new Date(todoList.createdAt).toLocaleString()}
+Updated: ${new Date(todoList.updatedAt).toLocaleString()}
+
+${todoList.description}
+  `.trim();
+}
+
+/**
+ * Format a list of todo lists to a readable string representation
+ * 
+ * @param todoLists Array of TodoList objects to format
+ * @returns A markdown-formatted string with the complete list
+ */
+export function formatTodoListCollection(todoLists: TodoList[]): string {
+  if (todoLists.length === 0) {
+    return "No todo lists found.";
+  }
+
+  const todoListItems = todoLists.map(formatTodoListInfo).join('\n\n---\n\n');
+  return `# Todo Lists (${todoLists.length} lists)\n\n${todoListItems}`;
 } 

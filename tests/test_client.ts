@@ -51,7 +51,7 @@ async function main() {
      */
     const transport = new StdioClientTransport({
       command: "node",
-      args: ["dist/index.js"],
+      args: ["dist/src/index.js"],
     });
 
     /**
@@ -86,15 +86,42 @@ async function main() {
     console.log("\nAvailable tools:", toolsResult.tools.map(tool => tool.name));
 
     /**
+     * Create a test todo list first
+     * 
+     * Since the new version supports multiple todo lists, we need to
+     * create a list first before adding todos to it.
+     */
+    console.log("\nCreating a test todo list...");
+    const createListResult = await client.callTool({
+      name: "create-todo-list",
+      arguments: {
+        name: "MCP Learning",
+        description: "A list for tracking MCP-related learning tasks"
+      }
+    });
+    
+    const createListContent = createListResult.content as ContentText[];
+    console.log(createListContent[0].text);
+
+    // Extract the list ID from the response
+    const listIdMatch = createListContent[0].text.match(/ID: ([0-9a-f-]+)/);
+    const listId = listIdMatch ? listIdMatch[1] : null;
+
+    if (!listId) {
+      throw new Error("Failed to extract list ID from response");
+    }
+
+    /**
      * Create a test todo
      * 
-     * This demonstrates the create-todo tool, which takes a title
-     * and markdown description as arguments.
+     * This demonstrates the create-todo tool, which now requires a listId
+     * along with title and markdown description as arguments.
      */
     console.log("\nCreating a test todo...");
     const createTodoResult = await client.callTool({
       name: "create-todo",
       arguments: {
+        listId: listId,
         title: "Learn about MCP",
         description: "# Model Context Protocol\n\n- Understand core concepts\n- Build a simple server\n- Test with Claude"
       }
@@ -115,6 +142,23 @@ async function main() {
 
     // Only proceed if we successfully created a todo and extracted its ID
     if (todoId) {
+
+      /**
+       * List todos by list ID
+       * 
+       * This demonstrates the list-todos-by-list tool, which shows
+       * todos for a specific list.
+       */
+      console.log("\nListing todos in the MCP Learning list...");
+      const listTodosByListResult = await client.callTool({
+        name: "list-todos-by-list",
+        arguments: {
+          listId: listId
+        }
+      });
+      const listByListContent = listTodosByListResult.content as ContentText[];
+      console.log(listByListContent[0].text);
+
       /**
        * List all todos
        * 

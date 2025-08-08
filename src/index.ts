@@ -28,15 +28,22 @@ import {
   CompleteTodoSchema,
   DeleteTodoSchema,
   SearchTodosByTitleSchema,
-  SearchTodosByDateSchema
+  SearchTodosByDateSchema,
+  ListTodosByListIdSchema
 } from "./models/Todo.js";
+
+import {
+  CreateTodoListSchema,
+  DeleteTodoListSchema
+} from "./models/TodoList.js";
 
 // Import services
 import { todoService } from "./services/TodoService.js";
+import { todoListService } from "./services/TodoListService.js";
 import { databaseService } from "./services/DatabaseService.js";
 
 // Import utilities
-import { createSuccessResponse, createErrorResponse, formatTodo, formatTodoList } from "./utils/formatters.js";
+import { createSuccessResponse, createErrorResponse, formatTodo, formatTodoList, formatTodoListInfo } from "./utils/formatters.js";
 import { config } from "./config.js";
 
 /**
@@ -100,12 +107,13 @@ server.tool(
   "create-todo",
   "Create a new todo item",
   {
+    listId: z.string().uuid("Invalid TodoList ID"),
     title: z.string().min(1, "Title is required"),
     description: z.string().min(1, "Description is required"),
   },
-  async ({ title, description }) => {
+  async ({ listId, title, description }) => {
     const result = await safeExecute(() => {
-      const validatedData = CreateTodoSchema.parse({ title, description });
+      const validatedData = CreateTodoSchema.parse({ listId, title, description });
       const newTodo = todoService.createTodo(validatedData);
       return formatTodo(newTodo);
     }, "Failed to create todo");
@@ -425,6 +433,97 @@ server.tool(
     return createSuccessResponse(result);
   }
 );
+
+/**
+ * TodoList Management Tools
+ */
+
+/**
+ * Tool: Create a new todo list
+ */
+server.tool(
+  "create-todo-list",
+  "Create a new todo list",
+  {
+    name: z.string().min(1, "Name is required"),
+    description: z.string().min(1, "Description is required"),
+  },
+  async ({ name, description }) => {
+    const result = await safeExecute(() => {
+      const validatedData = CreateTodoListSchema.parse({ name, description });
+      const newTodoList = todoListService.createTodoList(validatedData);
+      return formatTodoListInfo(newTodoList);
+    }, "Failed to create todo list");
+
+    if (result instanceof Error) {
+      return createErrorResponse(result.message);
+    }
+
+    return createSuccessResponse(`✅ Todo List Created:\n\n${result}`);
+  }
+);
+
+
+
+/**
+ * Tool: Delete a todo list
+ */
+server.tool(
+  "delete-todo-list",
+  "Delete a todo list and all its todos",
+  {
+    id: z.string().uuid("Invalid TodoList ID"),
+  },
+  async ({ id }) => {
+    const result = await safeExecute(() => {
+      const validatedData = DeleteTodoListSchema.parse({ id });
+      const todoList = todoListService.getTodoList(validatedData.id);
+      
+      if (!todoList) {
+        throw new Error(`Todo list with ID ${id} not found`);
+      }
+      
+      const success = todoListService.deleteTodoList(validatedData.id);
+      
+      if (!success) {
+        throw new Error(`Failed to delete todo list with ID ${id}`);
+      }
+      
+      return todoList.name;
+    }, "Failed to delete todo list");
+
+    if (result instanceof Error) {
+      return createErrorResponse(result.message);
+    }
+
+    return createSuccessResponse(`✅ Todo List Deleted: "${result}" (and all its todos)`);
+  }
+);
+
+/**
+ * Tool: List todos by list ID
+ */
+server.tool(
+  "list-todos-by-list",
+  "List all todos in a specific todo list",
+  {
+    listId: z.string().uuid("Invalid TodoList ID"),
+  },
+  async ({ listId }) => {
+    const result = await safeExecute(() => {
+      const validatedData = ListTodosByListIdSchema.parse({ listId });
+      const todos = todoService.getTodosByListId(validatedData.listId);
+      return formatTodoList(todos);
+    }, "Failed to list todos by list");
+
+    if (result instanceof Error) {
+      return createErrorResponse(result.message);
+    }
+
+    return createSuccessResponse(result);
+  }
+);
+
 
 /**
  * Main function to start the server

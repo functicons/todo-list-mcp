@@ -49,24 +49,122 @@ class DatabaseService {
   /**
    * Initialize the database schema
    * 
-   * This creates the todos table if it doesn't already exist.
+   * This creates the todo_lists and todos tables if they don't already exist.
    * The schema design incorporates:
    * - TEXT primary key for UUID compatibility
+   * - Foreign key relationship between todos and todo_lists
    * - NULL completedAt to represent incomplete todos
    * - Timestamp fields for tracking creation and updates
    */
   private initSchema(): void {
-    // Create todos table if it doesn't exist
+    // Check if we need to migrate from the old schema
+    this.migrateSchema();
+
+    // Create todo_lists table if it doesn't exist
     this.db.exec(`
-      CREATE TABLE IF NOT EXISTS todos (
+      CREATE TABLE IF NOT EXISTS todo_lists (
         id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
+        name TEXT NOT NULL,
         description TEXT NOT NULL,
-        completedAt TEXT NULL, -- ISO timestamp, NULL if not completed
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
       )
     `);
+
+    // Create todos table if it doesn't exist
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS todos (
+        id TEXT PRIMARY KEY,
+        listId TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        completedAt TEXT NULL, -- ISO timestamp, NULL if not completed
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        FOREIGN KEY (listId) REFERENCES todo_lists (id) ON DELETE CASCADE
+      )
+    `);
+
+    // Create index on listId for better query performance
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_todos_listId ON todos(listId)
+    `);
+  }
+
+  /**
+   * Migrate from old schema to new schema
+   * 
+   * This handles the transition from single todo list to multiple todo lists.
+   * If the old todos table exists without listId, we'll migrate the data.
+   */
+  private migrateSchema(): void {
+    try {
+      // Check if the old schema exists (todos table without listId column)
+      const tableInfo = this.db.prepare("PRAGMA table_info(todos)").all() as any[];
+      
+      if (tableInfo.length > 0) {
+        // Check if listId column exists
+        const hasListId = tableInfo.some((column: any) => column.name === 'listId');
+        
+        if (!hasListId) {
+          console.error('Migrating from old schema to new schema...');
+          
+          // Create a default todo list for existing todos
+          const defaultListId = 'default-list-' + new Date().getTime();
+          const now = new Date().toISOString();
+          
+          // Create todo_lists table first
+          this.db.exec(`
+            CREATE TABLE IF NOT EXISTS todo_lists (
+              id TEXT PRIMARY KEY,
+              name TEXT NOT NULL,
+              description TEXT NOT NULL,
+              createdAt TEXT NOT NULL,
+              updatedAt TEXT NOT NULL
+            )
+          `);
+          
+          // Insert default todo list
+          const insertDefaultList = this.db.prepare(`
+            INSERT INTO todo_lists (id, name, description, createdAt, updatedAt)
+            VALUES (?, ?, ?, ?, ?)
+          `);
+          insertDefaultList.run(defaultListId, 'Default List', 'Migrated from single list', now, now);
+          
+          // Rename old todos table
+          this.db.exec('ALTER TABLE todos RENAME TO todos_old');
+          
+          // Create new todos table with listId
+          this.db.exec(`
+            CREATE TABLE todos (
+              id TEXT PRIMARY KEY,
+              listId TEXT NOT NULL,
+              title TEXT NOT NULL,
+              description TEXT NOT NULL,
+              completedAt TEXT NULL,
+              createdAt TEXT NOT NULL,
+              updatedAt TEXT NOT NULL,
+              FOREIGN KEY (listId) REFERENCES todo_lists (id) ON DELETE CASCADE
+            )
+          `);
+          
+          // Migrate data from old table to new table
+          this.db.exec(`
+            INSERT INTO todos (id, listId, title, description, completedAt, createdAt, updatedAt)
+            SELECT id, '${defaultListId}', title, description, completedAt, createdAt, updatedAt
+            FROM todos_old
+          `);
+          
+          // Drop old table
+          this.db.exec('DROP TABLE todos_old');
+          
+          console.error(`Migration completed. Created default list with ID: ${defaultListId}`);
+        }
+      }
+    } catch (error) {
+      // If there's any error during migration, it's likely that the tables don't exist yet
+      // which is fine for new installations
+    }
   }
 
   /**

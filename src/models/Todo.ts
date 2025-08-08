@@ -26,6 +26,7 @@ import { v4 as uuidv4 } from 'uuid';
  */
 export interface Todo {
   id: string;
+  listId: string; // ID of the TodoList this todo belongs to
   title: string;
   description: string; // Markdown format
   completed: boolean; // Computed from completedAt for backward compatibility
@@ -46,8 +47,9 @@ export interface Todo {
  * - Makes the API more intuitive by clearly defining what each operation expects
  */
 
-// Schema for creating a new todo - requires title and description
+// Schema for creating a new todo - requires listId, title and description
 export const CreateTodoSchema = z.object({
+  listId: z.string().uuid("Invalid TodoList ID"),
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
 });
@@ -79,6 +81,16 @@ export const SearchTodosByDateSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
 });
 
+// Schema for listing todos by list ID
+export const ListTodosByListIdSchema = z.object({
+  listId: z.string().uuid("Invalid TodoList ID"),
+});
+
+// Schema for listing active todos by list ID
+export const ListActiveTodosByListIdSchema = z.object({
+  listId: z.string().uuid("Invalid TodoList ID"),
+});
+
 /**
  * Factory Function: createTodo
  * 
@@ -95,6 +107,7 @@ export function createTodo(data: z.infer<typeof CreateTodoSchema>): Todo {
   const now = new Date().toISOString();
   return {
     id: uuidv4(),
+    listId: data.listId,
     title: data.title,
     description: data.description,
     completed: false,

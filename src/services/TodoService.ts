@@ -43,13 +43,14 @@ class TodoService {
     
     // Prepare the SQL statement for inserting a new todo
     const stmt = db.prepare(`
-      INSERT INTO todos (id, title, description, completedAt, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO todos (id, listId, title, description, completedAt, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
     
     // Execute the statement with the todo's data
     stmt.run(
       todo.id,
+      todo.listId,
       todo.title,
       todo.description,
       todo.completedAt,
@@ -249,6 +250,34 @@ class TodoService {
   }
 
   /**
+   * Get todos by list ID
+   * 
+   * @param listId The UUID of the todo list
+   * @returns Array of todos for the specified list
+   */
+  getTodosByListId(listId: string): Todo[] {
+    const db = databaseService.getDb();
+    const stmt = db.prepare('SELECT * FROM todos WHERE listId = ?');
+    const rows = stmt.all(listId) as any[];
+    
+    return rows.map(row => this.rowToTodo(row));
+  }
+
+  /**
+   * Get active todos by list ID
+   * 
+   * @param listId The UUID of the todo list
+   * @returns Array of active todos for the specified list
+   */
+  getActiveTodosByListId(listId: string): Todo[] {
+    const db = databaseService.getDb();
+    const stmt = db.prepare('SELECT * FROM todos WHERE listId = ? AND completedAt IS NULL');
+    const rows = stmt.all(listId) as any[];
+    
+    return rows.map(row => this.rowToTodo(row));
+  }
+
+  /**
    * Generate a summary of active todos
    * 
    * This method creates a markdown-formatted summary of all active todos.
@@ -272,6 +301,23 @@ class TodoService {
     const summary = activeTodos.map(todo => `- ${todo.title}`).join('\n');
     return `# Active Todos Summary\n\nThere are ${activeTodos.length} active todos:\n\n${summary}`;
   }
+
+  /**
+   * Generate a summary of active todos for a specific list
+   * 
+   * @param listId The UUID of the todo list
+   * @returns Markdown-formatted summary string
+   */
+  summarizeActiveTodosByListId(listId: string): string {
+    const activeTodos = this.getActiveTodosByListId(listId);
+    
+    if (activeTodos.length === 0) {
+      return "No active todos found for this list.";
+    }
+    
+    const summary = activeTodos.map(todo => `- ${todo.title}`).join('\n');
+    return `# Active Todos Summary\n\nThere are ${activeTodos.length} active todos in this list:\n\n${summary}`;
+  }
   
   /**
    * Helper to convert a database row to a Todo object
@@ -290,6 +336,7 @@ class TodoService {
   private rowToTodo(row: any): Todo {
     return {
       id: row.id,
+      listId: row.listId,
       title: row.title,
       description: row.description,
       completedAt: row.completedAt,
