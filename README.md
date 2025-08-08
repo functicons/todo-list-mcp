@@ -114,8 +114,7 @@ Once configured with your AI client, try these commands:
 
 ### Managing Tasks
 - "Show me all todos in my work projects list"
-- "Mark the presentation todo as completed"
-- "Update my presentation todo to include slide design"
+- "Update the presentation todo to 'completed'"
 - "Create a high-priority todo for the client meeting tomorrow"
 
 ### Organization & Status
@@ -158,26 +157,23 @@ The server provides these tools for AI clients:
 - `description` (string, required): Todo description (minimum 1 character)
 
 #### `get-todo`
-**Description**: Retrieve a specific todo by ID  
+**Description**: Retrieve a specific todo by its list ID and sequence number
 **Parameters**:
-- `id` (string, required): UUID of the todo item
+- `listId` (string, required): UUID of the todo list
+- `seqno` (number, required): Sequence number of the todo in the list
 
 #### `update-todo`
-**Description**: Update a todo's title or description  
+**Description**: Update a todo's status  
 **Parameters**:
-- `id` (string, required): UUID of the todo item
-- `title` (string, optional): New title
-- `description` (string, optional): New description
-
-#### `complete-todo`
-**Description**: Mark a todo as completed  
-**Parameters**:
-- `id` (string, required): UUID of the todo item
+- `listId` (string, required): UUID of the todo list
+- `seqno` (number, required): Sequence number of the todo in the list
+- `status` (string, required): New status (`pending`, `completed`, or `canceled`)
 
 #### `delete-todo`
 **Description**: Delete a todo permanently  
 **Parameters**:
-- `id` (string, required): UUID of the todo item
+- `listId` (string, required): UUID of the todo list
+- `seqno` (number, required): Sequence number of the todo in the list
 
 #### `list-todos`
 **Description**: List all todos across all lists  
