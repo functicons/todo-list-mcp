@@ -23,7 +23,7 @@ export interface DataStore {
   createTodoList(todoList: TodoList): Promise<TodoList>;
   getTodoList(id: string): Promise<TodoList | undefined>;
   getAllTodoLists(): Promise<TodoList[]>;
-  updateTodoList(id: string, updates: Partial<Omit<TodoList, 'id' | 'createdAt'>>): Promise<TodoList | undefined>;
+  updateTodoList(id: string, updates: Partial<Omit<TodoList, 'id'>>): Promise<TodoList | undefined>;
   deleteTodoList(id: string): Promise<boolean>;
 
   // Todo operations
@@ -31,7 +31,7 @@ export interface DataStore {
   getTodo(listId: string, seqno: number): Promise<Todo | undefined>;
   getAllTodos(): Promise<Todo[]>;
   getTodosByListId(listId: string): Promise<Todo[]>;
-  updateTodo(listId: string, seqno: number, updates: Partial<Omit<Todo, 'listId' | 'seqno' | 'createdAt'>>): Promise<Todo | undefined>;
+  updateTodo(listId: string, seqno: number, updates: Partial<Omit<Todo, 'listId' | 'seqno'>>): Promise<Todo | undefined>;
   deleteTodo(listId: string, seqno: number): Promise<boolean>;
   
   // Search operations

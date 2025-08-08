@@ -19,7 +19,7 @@ class TodoListService {
   /**
    * Create a new todo list
    * 
-   * @param data Validated input data (name and description)
+   * @param data Validated input data (empty object, id generated automatically)
    * @returns Promise resolving to the newly created TodoList
    */
   async createTodoList(data: z.infer<typeof CreateTodoListSchema>): Promise<TodoList> {
@@ -52,18 +52,14 @@ class TodoListService {
   /**
    * Update a todo list
    * 
-   * @param data The update data (id required, name/description optional)
+   * @param data The update data (id required, no other fields to update)
    * @returns Promise resolving to the updated TodoList if found, undefined otherwise
    */
   async updateTodoList(data: z.infer<typeof UpdateTodoListSchema>): Promise<TodoList | undefined> {
     const store = dataService.getStore();
-    const updates: Partial<Omit<TodoList, 'id' | 'createdAt'>> = {};
-    
-    if (data.description !== undefined) {
-      updates.description = data.description;
-    }
-    
-    return await store.updateTodoList(data.id, updates);
+    // Since TodoList only has id field, there's nothing to update
+    // Just verify the list exists and return it
+    return await store.getTodoList(data.id);
   }
 
   /**

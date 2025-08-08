@@ -68,7 +68,6 @@ export class TestUtils {
    */
   static createSampleTodoList(overrides: Partial<Parameters<typeof createTodoList>[0]> = {}) {
     return createTodoList({
-      description: 'A test todo list',
       ...overrides
     });
   }
@@ -80,7 +79,6 @@ export class TestUtils {
     return createTodo({
       listId,
       title: 'Test Todo',
-      description: 'A test todo item',
       ...overrides
     }, seqno);
   }
@@ -98,14 +96,7 @@ export class TodoAssertions {
     assert.equal(typeof actual.id, 'string', 'TodoList should have string id');
     assert.ok(actual.id.length > 0, 'TodoList id should not be empty');
     
-    if (expected.description) {
-      assert.equal(actual.description, expected.description, 'TodoList description should match');
-    }
-    
-    assert.equal(typeof actual.createdAt, 'string', 'TodoList should have createdAt timestamp');
-    assert.equal(typeof actual.updatedAt, 'string', 'TodoList should have updatedAt timestamp');
-    assert.ok(new Date(actual.createdAt).getTime() > 0, 'TodoList createdAt should be valid date');
-    assert.ok(new Date(actual.updatedAt).getTime() > 0, 'TodoList updatedAt should be valid date');
+    // TodoList now only has id field
   }
 
   /**
@@ -121,9 +112,6 @@ export class TodoAssertions {
     if (expected.title) {
       assert.equal(actual.title, expected.title, 'Todo title should match');
     }
-    if (expected.description) {
-      assert.equal(actual.description, expected.description, 'Todo description should match');
-    }
     if (expected.listId) {
       assert.equal(actual.listId, expected.listId, 'Todo listId should match');
     }
@@ -133,10 +121,7 @@ export class TodoAssertions {
     
     assert.equal(typeof actual.status, 'string', 'Todo should have string status');
     
-    assert.equal(typeof actual.createdAt, 'string', 'Todo should have createdAt timestamp');
-    assert.equal(typeof actual.updatedAt, 'string', 'Todo should have updatedAt timestamp');
-    assert.ok(new Date(actual.createdAt).getTime() > 0, 'Todo createdAt should be valid date');
-    assert.ok(new Date(actual.updatedAt).getTime() > 0, 'Todo updatedAt should be valid date');
+    // Todo now only has listId, seqno, title, and status
   }
 
   /**
@@ -159,10 +144,10 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
     test(`${storeName}: Create TodoList`, async () => {
       const store = await createStore();
       try {
-        const todoList = TestUtils.createSampleTodoList({ description: 'Integration Test List' });
+        const todoList = TestUtils.createSampleTodoList();
         const created = await store.createTodoList(todoList);
         
-        TodoAssertions.assertTodoList(created, { description: 'Integration Test List' });
+        TodoAssertions.assertTodoList(created, {});
         assert.equal(created.id, todoList.id, 'Created TodoList should have same id');
       } finally {
         await store.close();
@@ -172,11 +157,11 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
     test(`${storeName}: Get TodoList`, async () => {
       const store = await createStore();
       try {
-        const todoList = TestUtils.createSampleTodoList({ description: 'Get Test List' });
+        const todoList = TestUtils.createSampleTodoList();
         await store.createTodoList(todoList);
         
         const retrieved = await store.getTodoList(todoList.id);
-        TodoAssertions.assertTodoList(retrieved!, { description: 'Get Test List' });
+        TodoAssertions.assertTodoList(retrieved!, {});
         assert.equal(retrieved!.id, todoList.id);
       } finally {
         await store.close();
@@ -196,15 +181,14 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
     test(`${storeName}: Update TodoList`, async () => {
       const store = await createStore();
       try {
-        const todoList = TestUtils.createSampleTodoList({ description: 'Original description' });
+        const todoList = TestUtils.createSampleTodoList();
         await store.createTodoList(todoList);
         
-        const updated = await store.updateTodoList(todoList.id, {
-          description: 'Updated description'
-        });
+        const updated = await store.updateTodoList(todoList.id, {});
         
-        TodoAssertions.assertTodoList(updated!, { description: 'Updated description' });
-        assert.notEqual(updated!.updatedAt, todoList.updatedAt, 'UpdatedAt should change');
+        TodoAssertions.assertTodoList(updated!, {});
+        // Since TodoList only has id field, just verify it's the same
+        assert.equal(updated!.id, todoList.id, 'ID should remain the same');
       } finally {
         await store.close();
       }
@@ -285,8 +269,8 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
     test(`${storeName}: Get Todos by List ID`, async () => {
       const store = await createStore();
       try {
-        const todoList1 = TestUtils.createSampleTodoList({ description: 'List 1' });
-        const todoList2 = TestUtils.createSampleTodoList({ description: 'List 2' });
+        const todoList1 = TestUtils.createSampleTodoList();
+        const todoList2 = TestUtils.createSampleTodoList();
         await store.createTodoList(todoList1);
         await store.createTodoList(todoList2);
         

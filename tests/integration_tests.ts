@@ -33,21 +33,17 @@ async function runAllTests() {
       
       try {
         // Create identical data in both stores
-        const todoList = TestUtils.createSampleTodoList({
-          description: 'Testing cross-store compatibility'
-        });
+        const todoList = TestUtils.createSampleTodoList();
         
         const jsonCreated = await jsonStore.createTodoList(todoList);
         const sqliteCreated = await sqliteStore.createTodoList(todoList);
         
-        // Both should have same structure (except timestamps might differ slightly)
+        // Both should have same structure
         assert.equal(jsonCreated.id, sqliteCreated.id);
-        assert.equal(jsonCreated.description, sqliteCreated.description);
         
         // Test todo operations
         const todo = TestUtils.createSampleTodo(todoList.id, 1, {
-          title: 'Cross-store todo',
-          description: 'Testing cross-store todo compatibility'
+          title: 'Cross-store todo'
         });
         
         const jsonTodo = await jsonStore.createTodo(todo);
@@ -73,7 +69,7 @@ async function runAllTests() {
         assert.equal(result, undefined);
         
         // Try to update non-existent todo list
-        const updated = await store.updateTodoList('non-existent-id', { description: 'New description' });
+        const updated = await store.updateTodoList('non-existent-id', {});
         assert.equal(updated, undefined);
         
         // Try to delete non-existent todo list
@@ -143,7 +139,7 @@ async function runAllTests() {
     test('JsonFileDataStore: Throws ConstraintViolationException for duplicate TodoList ID', async () => {
       const store = await TestUtils.createJsonStore();
       try {
-        const todoList = TestUtils.createSampleTodoList({ description: 'Test List' });
+        const todoList = TestUtils.createSampleTodoList();
         await store.createTodoList(todoList);
         
         await assert.rejects(
@@ -228,7 +224,7 @@ async function runAllTests() {
     test('Custom exceptions have correct properties', async () => {
       const store = await TestUtils.createSqliteStore();
       try {
-        const todoList = TestUtils.createSampleTodoList({ description: 'Test List' });
+        const todoList = TestUtils.createSampleTodoList();
         await store.createTodoList(todoList);
         
         try {
@@ -257,17 +253,11 @@ async function runAllTests() {
         // Wait a bit to ensure timestamp difference
         await new Promise(resolve => setTimeout(resolve, 10));
         
-        const updated = await store.updateTodoList(created.id, {
-          description: 'Updated description'
-        });
+        const updated = await store.updateTodoList(created.id, {});
         
         assert.ok(updated);
-        assert.equal(updated.createdAt, created.createdAt, 'CreatedAt should not change on update');
-        assert.notEqual(updated.updatedAt, created.updatedAt, 'UpdatedAt should change on update');
-        
-        const updatedTime = new Date(updated.updatedAt).getTime();
-        const createdTime = new Date(created.createdAt).getTime();
-        assert.ok(updatedTime >= createdTime, 'UpdatedAt should be >= createdAt');
+        // Since TodoList only has id field now, just verify the id matches
+        assert.equal(updated.id, created.id, 'ID should remain the same');
         
       } finally {
         await store.close();

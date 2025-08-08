@@ -11,27 +11,22 @@ import { v4 as uuidv4 } from 'uuid';
  * TodoList Interface
  * 
  * Defines the structure of a TodoList entity that groups todos together.
+ * Simplified to only include the essential id field.
  */
 export interface TodoList {
   id: string;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 /**
  * Input Validation Schemas
  */
 
-// Schema for creating a new todo list
-export const CreateTodoListSchema = z.object({
-  description: z.string().min(1, "Description is required"),
-});
+// Schema for creating a new todo list - no additional fields needed, id will be generated
+export const CreateTodoListSchema = z.object({});
 
-// Schema for updating a todo list
+// Schema for updating a todo list - no fields to update besides id
 export const UpdateTodoListSchema = z.object({
   id: z.string().uuid("Invalid TodoList ID"),
-  description: z.string().min(1, "Description is required").optional(),
 });
 
 // Schema for deleting a todo list
@@ -48,11 +43,7 @@ export const DeleteTodoListSchema = z.object({
  * @returns A fully formed TodoList object
  */
 export function createTodoList(data: z.infer<typeof CreateTodoListSchema>): TodoList {
-  const now = new Date().toISOString();
   return {
     id: uuidv4(),
-    description: data.description,
-    createdAt: now,
-    updatedAt: now,
   };
 }

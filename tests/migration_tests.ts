@@ -155,13 +155,10 @@ export async function runMigrationTests(): Promise<void> {
           
           // Should be able to create data normally
           const todoList = await store.createTodoList({
-            id: 'test-list-1',
-            description: 'Test description',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            id: 'test-list-1'
           });
           
-          TodoAssertions.assertTodoList(todoList, { description: 'Test description' });
+          TodoAssertions.assertTodoList(todoList, {});
           
         } finally {
           await store.close();

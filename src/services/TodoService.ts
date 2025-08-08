@@ -38,7 +38,7 @@ class TodoService {
    * 3. Persists it to the data store
    * 4. Returns the created Todo
    * 
-   * @param data Validated input data (listId, title and description)
+   * @param data Validated input data (listId and title)
    * @returns Promise resolving to the newly created Todo
    */
   async createTodo(data: z.infer<typeof CreateTodoSchema>): Promise<Todo> {
@@ -92,7 +92,7 @@ class TodoService {
   /**
    * Update a todo
    * 
-   * @param data The update data (listId, seqno required, title/description optional)
+   * @param data The update data (listId, seqno and status required)
    * @returns Promise resolving to the updated Todo if found, undefined otherwise
    */
   async updateTodo(data: z.infer<typeof UpdateTodoSchema>): Promise<Todo | undefined> {

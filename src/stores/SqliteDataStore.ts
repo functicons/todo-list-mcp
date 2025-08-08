@@ -81,10 +81,7 @@ export class SqliteDataStore implements DataStore {
     // Create todo_lists table if it doesn't exist
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS todo_lists (
-        id TEXT PRIMARY KEY,
-        description TEXT NOT NULL,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
+        id TEXT PRIMARY KEY
       )
     `);
 
@@ -94,10 +91,7 @@ export class SqliteDataStore implements DataStore {
         listId TEXT NOT NULL,
         seqno INTEGER NOT NULL,
         title TEXT NOT NULL,
-        description TEXT NOT NULL,
         status TEXT NOT NULL,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL,
         PRIMARY KEY (listId, seqno),
         FOREIGN KEY (listId) REFERENCES todo_lists (id) ON DELETE CASCADE
       )
@@ -144,10 +138,7 @@ export class SqliteDataStore implements DataStore {
    */
   private rowToTodoList(row: any): TodoList {
     return {
-      id: row.id,
-      description: row.description,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt
+      id: row.id
     };
   }
 
@@ -159,10 +150,7 @@ export class SqliteDataStore implements DataStore {
       listId: row.listId,
       seqno: row.seqno,
       title: row.title,
-      description: row.description,
-      status: row.status,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt
+      status: row.status
     };
   }
 
@@ -171,11 +159,11 @@ export class SqliteDataStore implements DataStore {
   async createTodoList(todoList: TodoList): Promise<TodoList> {
     try {
       const stmt = this.db.prepare(`
-        INSERT INTO todo_lists (id, description, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO todo_lists (id)
+        VALUES (?)
       `);
       
-      stmt.run(todoList.id, todoList.description, todoList.createdAt, todoList.updatedAt);
+      stmt.run(todoList.id);
       return todoList;
     } catch (error: any) {
       if (error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
@@ -205,23 +193,8 @@ export class SqliteDataStore implements DataStore {
     return rows.map(row => this.rowToTodoList(row));
   }
 
-  async updateTodoList(id: string, updates: Partial<Omit<TodoList, 'id' | 'createdAt'>>): Promise<TodoList | undefined> {
-    const existing = await this.getTodoList(id);
-    if (!existing) return undefined;
-
-    const updatedAt = new Date().toISOString();
-    const stmt = this.db.prepare(`
-      UPDATE todo_lists
-      SET description = ?, updatedAt = ?
-      WHERE id = ?
-    `);
-    
-    stmt.run(
-      updates.description || existing.description,
-      updatedAt,
-      id
-    );
-    
+  async updateTodoList(id: string, updates: Partial<Omit<TodoList, 'id'>>): Promise<TodoList | undefined> {
+    // Since TodoList only has id field, just verify it exists and return it
     return await this.getTodoList(id);
   }
 
@@ -236,11 +209,11 @@ export class SqliteDataStore implements DataStore {
   async createTodo(todo: Todo): Promise<Todo> {
     try {
       const stmt = this.db.prepare(`
-        INSERT INTO todos (listId, seqno, title, description, status, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO todos (listId, seqno, title, status)
+        VALUES (?, ?, ?, ?)
       `);
       
-      stmt.run(todo.listId, todo.seqno, todo.title, todo.description, todo.status, todo.createdAt, todo.updatedAt);
+      stmt.run(todo.listId, todo.seqno, todo.title, todo.status);
       return todo;
     } catch (error: any) {
       if (error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
@@ -283,20 +256,19 @@ export class SqliteDataStore implements DataStore {
     return rows.map(row => this.rowToTodo(row));
   }
 
-  async updateTodo(listId: string, seqno: number, updates: Partial<Omit<Todo, 'listId' | 'seqno' | 'createdAt'>>): Promise<Todo | undefined> {
+  async updateTodo(listId: string, seqno: number, updates: Partial<Omit<Todo, 'listId' | 'seqno'>>): Promise<Todo | undefined> {
     const existing = await this.getTodo(listId, seqno);
     if (!existing) return undefined;
 
-    const updatedAt = new Date().toISOString();
     const stmt = this.db.prepare(`
       UPDATE todos
-      SET status = ?, updatedAt = ?
+      SET title = ?, status = ?
       WHERE listId = ? AND seqno = ?
     `);
     
     stmt.run(
+      updates.title || existing.title,
       updates.status || existing.status,
-      updatedAt,
       listId,
       seqno
     );
@@ -320,9 +292,7 @@ export class SqliteDataStore implements DataStore {
   }
 
   async searchTodosByDate(dateStr: string): Promise<Todo[]> {
-    const datePattern = `${dateStr}%`;
-    const stmt = this.db.prepare('SELECT * FROM todos WHERE createdAt LIKE ? ORDER BY listId, seqno ASC');
-    const rows = stmt.all(datePattern) as any[];
-    return rows.map(row => this.rowToTodo(row));
+    // Since there are no timestamp fields anymore, return empty array
+    return [];
   }
 }

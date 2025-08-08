@@ -37,10 +37,6 @@ export function formatTodo(todo: Todo): string {
 SeqNo: ${todo.seqno}
 List ID: ${todo.listId}
 Status: ${todo.status}
-Created: ${new Date(todo.createdAt).toLocaleString()}
-Updated: ${new Date(todo.updatedAt).toLocaleString()}
-
-${todo.description}
   `.trim();
 }
 
@@ -117,10 +113,6 @@ export function createErrorResponse(message: string) {
 export function formatTodoListInfo(todoList: TodoList): string {
   return `
 ID: ${todoList.id}
-Created: ${new Date(todoList.createdAt).toLocaleString()}
-Updated: ${new Date(todoList.updatedAt).toLocaleString()}
-
-${todoList.description}
   `.trim();
 }
 

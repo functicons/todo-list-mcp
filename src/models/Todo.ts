@@ -25,20 +25,16 @@ export type TodoStatus = z.infer<typeof TodoStatus>;
  * Todo Interface
  * 
  * This defines the structure of a Todo item in our application.
- * We've designed it with several important considerations:
- * - seqno is a per-list sequence number for ordering
- * - Timestamps track creation and updates for data lifecycle management
- * - Description supports markdown for rich text formatting
+ * Simplified to only include essential fields:
+ * - listId + seqno together form the composite primary key (id)
+ * - title is the todo content
  * - status tracks the current state of the todo item
  */
 export interface Todo {
   listId: string; // ID of the TodoList this todo belongs to
   seqno: number; // Sequence number per list, starting from 1
   title: string;
-  description: string; // Markdown format
   status: TodoStatus;
-  createdAt: string;
-  updatedAt: string;
 }
 
 /**
@@ -53,11 +49,10 @@ export interface Todo {
  * - Makes the API more intuitive by clearly defining what each operation expects
  */
 
-// Schema for creating a new todo - requires listId, title and description
+// Schema for creating a new todo - requires listId and title
 export const CreateTodoSchema = z.object({
   listId: z.string().uuid("Invalid TodoList ID"),
   title: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
 });
 
 // Schema for updating a todo - requires listId, seqno and status.
@@ -94,17 +89,13 @@ export const ListActiveTodosByListIdSchema = z.object({
  * 
  * @param data The validated input data
  * @param seqno The sequence number for the new todo
- * @returns A fully formed Todo object with generated ID and timestamps
+ * @returns A fully formed Todo object
  */
 export function createTodo(data: z.infer<typeof CreateTodoSchema>, seqno: number): Todo {
-  const now = new Date().toISOString();
   return {
     listId: data.listId,
     seqno: seqno,
     title: data.title,
-    description: data.description,
     status: 'pending',
-    createdAt: now,
-    updatedAt: now,
   };
 }

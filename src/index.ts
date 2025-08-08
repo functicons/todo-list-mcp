@@ -90,7 +90,7 @@ async function safeExecute<T>(operation: () => T | Promise<T>, errorMessage: str
  * Tool 1: Create a new todo
  * 
  * This tool:
- * 1. Validates the input (title and description)
+ * 1. Validates the input (title)
  * 2. Creates a new todo using the service
  * 3. Returns the formatted todo
  * 
@@ -107,11 +107,10 @@ server.tool(
   {
     listId: z.string().uuid("Invalid TodoList ID"),
     title: z.string().min(1, "Title is required"),
-    description: z.string().min(1, "Description is required"),
   },
-  async ({ listId, title, description }) => {
+  async ({ listId, title }) => {
     const result = await safeExecute(async () => {
-      const validatedData = CreateTodoSchema.parse({ listId, title, description });
+      const validatedData = CreateTodoSchema.parse({ listId, title });
       const newTodo = await todoService.createTodo(validatedData);
       return formatTodo(newTodo);
     }, "Failed to create todo");
@@ -182,7 +181,7 @@ server.tool(
  * Tool 4: Update a todo
  * 
  * This tool:
- * 1. Validates the input (id required, title/description optional)
+ * 1. Validates the input (id required)
  * 2. Ensures at least one field is being updated
  * 3. Updates the todo using the service
  * 4. Returns the formatted updated todo
@@ -228,12 +227,10 @@ server.tool(
 server.tool(
   "create-todo-list",
   "Create a new todo list",
-  {
-    description: z.string().min(1, "Description is required"),
-  },
-  async ({ description }) => {
+  {},
+  async () => {
     const result = await safeExecute(async () => {
-      const validatedData = CreateTodoListSchema.parse({ description });
+      const validatedData = CreateTodoListSchema.parse({});
       const newTodoList = await todoListService.createTodoList(validatedData);
       return formatTodoListInfo(newTodoList);
     }, "Failed to create todo list");

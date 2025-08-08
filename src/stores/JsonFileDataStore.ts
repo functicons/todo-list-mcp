@@ -163,27 +163,12 @@ export class JsonFileDataStore implements DataStore {
   }
 
   async getAllTodoLists(): Promise<TodoList[]> {
-    return [...this.data.todoLists].sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    return [...this.data.todoLists];
   }
 
-  async updateTodoList(id: string, updates: Partial<Omit<TodoList, 'id' | 'createdAt'>>): Promise<TodoList | undefined> {
-    const index = this.data.todoLists.findIndex(list => list.id === id);
-    if (index === -1) return undefined;
-
-    const existing = this.data.todoLists[index];
-    const updated = {
-      ...existing,
-      ...updates,
-      id: existing.id,
-      createdAt: existing.createdAt,
-      updatedAt: new Date().toISOString()
-    };
-
-    this.data.todoLists[index] = updated;
-    await this.saveData();
-    return updated;
+  async updateTodoList(id: string, updates: Partial<Omit<TodoList, 'id'>>): Promise<TodoList | undefined> {
+    // Since TodoList only has id field, just verify it exists and return it
+    return this.data.todoLists.find(list => list.id === id);
   }
 
   async deleteTodoList(id: string): Promise<boolean> {
@@ -242,7 +227,7 @@ export class JsonFileDataStore implements DataStore {
       .sort((a, b) => a.seqno - b.seqno);
   }
 
-  async updateTodo(listId: string, seqno: number, updates: Partial<Omit<Todo, 'listId' | 'seqno' | 'createdAt'>>): Promise<Todo | undefined> {
+  async updateTodo(listId: string, seqno: number, updates: Partial<Omit<Todo, 'listId' | 'seqno'>>): Promise<Todo | undefined> {
     const index = this.data.todos.findIndex(todo => todo.listId === listId && todo.seqno === seqno);
     if (index === -1) return undefined;
 
@@ -252,8 +237,6 @@ export class JsonFileDataStore implements DataStore {
       ...updates,
       listId: existing.listId,
       seqno: existing.seqno,
-      createdAt: existing.createdAt,
-      updatedAt: new Date().toISOString(),
     };
 
     this.data.todos[index] = updated;
@@ -286,12 +269,7 @@ export class JsonFileDataStore implements DataStore {
   }
 
   async searchTodosByDate(dateStr: string): Promise<Todo[]> {
-    return this.data.todos
-      .filter(todo => todo.createdAt.startsWith(dateStr))
-      .sort((a, b) => {
-        if (a.listId < b.listId) return -1;
-        if (a.listId > b.listId) return 1;
-        return a.seqno - b.seqno;
-      });
+    // Since there are no timestamp fields anymore, return empty array
+    return [];
   }
 }
