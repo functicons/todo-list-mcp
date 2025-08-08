@@ -7,8 +7,7 @@ A Model Context Protocol (MCP) server that provides todo list management with mu
 - **Multiple Todo Lists**: Create and manage separate todo lists
 - **Session Isolation**: Each AI client gets its own private todo lists
 - **Flexible Storage**: Choose between JSON files or SQLite database
-- **Rich Todo Management**: Create, update, complete, search, and organize tasks
-- **Markdown Support**: Full markdown formatting in todo descriptions
+- **Streamlined Todo Management**: Create, update, complete, and organize tasks with a simplified data model
 
 ## Installation
 
@@ -108,19 +107,18 @@ The server supports two storage backends:
 Once configured with your AI client, try these commands:
 
 ### Getting Started
-- "Create a new todo list for 'Work Projects'"
-- "Add a todo to my work list: prepare quarterly presentation"
-- "List all my todo lists"
+- "Create a new todo list"
+- "Add a todo: prepare quarterly presentation" 
+- "List all my todos"
 
 ### Managing Tasks
-- "Show me all todos in my work projects list"
+- "Show me all todos in a specific list"
 - "Update the presentation todo to 'completed'"
-- "Create a high-priority todo for the client meeting tomorrow"
-
+- "Create a todo for the client meeting tomorrow"
 - "List all todos across my lists"
 
 ### Multiple Lists
-- "Create a personal todo list for weekend activities"
+- "Create a personal todo list"
 - "Move my gym todo from work list to personal list" (by recreating)
 - "Delete my old project list and all its todos"
 
@@ -129,16 +127,12 @@ Once configured with your AI client, try these commands:
 The server provides these tools for AI clients:
 
 **Todo Management:**
-- Create, update, complete, and delete todos
-- List active (incomplete) todos
-- Get todo summaries
+- Create, update, and delete todos
+- List todos with streamlined data structure
 
 **List Management:**
 - Create and delete todo lists
-- List todos within specific lists
 - Organize todos across multiple lists
-
-- List all todos or filter by completion status
 
 ## API Specification
 
@@ -149,13 +143,11 @@ The server provides these tools for AI clients:
 **Parameters**:
 - `listId` (string, required): UUID of the todo list
 - `title` (string, required): Todo title (minimum 1 character)
-- `description` (string, required): Todo description (minimum 1 character)
 
-#### `get-todo`
-**Description**: Retrieve a specific todo by its list ID and sequence number
+#### `get-todos`
+**Description**: List all todos across all todo lists, or filter by specific list
 **Parameters**:
-- `listId` (string, required): UUID of the todo list
-- `seqno` (number, required): Sequence number of the todo in the list
+- `listId` (string, optional): UUID of specific todo list to filter by
 
 #### `update-todo`
 **Description**: Update a todo's status  
@@ -164,38 +156,18 @@ The server provides these tools for AI clients:
 - `seqno` (number, required): Sequence number of the todo in the list
 - `status` (string, required): New status (`pending`, `completed`, or `canceled`)
 
-#### `delete-todo`
-**Description**: Delete a todo permanently  
-**Parameters**:
-- `listId` (string, required): UUID of the todo list
-- `seqno` (number, required): Sequence number of the todo in the list
-
-
-
-#### `list-active-todos`
-**Description**: List all non-completed todos  
-**Parameters**: None
-
-#### `summarize-active-todos`
-**Description**: Generate a summary of all active todos  
-**Parameters**: None
 
 ### Todo List Operations
 
 #### `create-todo-list`
 **Description**: Create a new todo list  
-**Parameters**:
-- `description` (string, required): Description of the todo list (minimum 1 character)
+**Parameters**: None (ID is generated automatically)
 
 #### `delete-todo-list`
 **Description**: Delete a todo list and all its todos  
 **Parameters**:
 - `id` (string, required): UUID of the todo list
 
-#### `list-todos-by-list`
-**Description**: List all todos in a specific todo list  
-**Parameters**:
-- `listId` (string, required): UUID of the todo list
 
 ### Response Format
 

@@ -13,7 +13,7 @@ The Model Context Protocol (MCP) is a specification that enables AI models like 
 
 ## About This Project
 
-This Todo List MCP Server is designed to be a clear, educational example of how to build an MCP server. It implements a complete todo list management system that can be used by Claude or other MCP-compatible systems.
+This Todo List MCP Server is designed to be a clear, educational example of how to build an MCP server. It implements a streamlined todo list management system with a simplified data model that can be used by Claude or other MCP-compatible systems.
 
 ### Learning Objectives
 
@@ -58,11 +58,12 @@ A consistent error handling approach is used throughout:
 
 ### 4. Data Persistence
 
-The project uses SQLite for simple but effective data storage:
+The project supports multiple storage backends with a simplified data model:
 
-- **File-based Database**: Easy to set up with no external dependencies
-- **SQL Operations**: Demonstrates parameterized queries and basic CRUD operations
-- **Singleton Pattern**: Ensures a single database connection throughout the application
+- **Multiple Storage Options**: JSON files or SQLite database for flexibility
+- **Simplified Schema**: Streamlined data structure with only essential fields
+- **Efficient Operations**: Demonstrates parameterized queries and basic CRUD operations
+- **Singleton Pattern**: Ensures consistent data access throughout the application
 
 ## Key Implementation Patterns
 
@@ -144,7 +145,7 @@ Use the provided test client to see the server in action:
 npm run test
 ```
 
-This will run through a complete lifecycle of creating, and deleting a todo.
+This will run through a complete lifecycle of creating todo lists and todos, testing the simplified data model.
 
 ### Integration with Claude for Desktop
 
@@ -173,6 +174,6 @@ To use this server with Claude for Desktop, add it to your `claude_desktop_confi
 
 ## Conclusion
 
-This Todo List MCP Server demonstrates a clean, well-structured approach to building an MCP server. By studying the code and comments, you can gain a deep understanding of how MCP works and how to implement your own MCP servers for various use cases.
+This Todo List MCP Server demonstrates a clean, well-structured approach to building an MCP server with a simplified, efficient data model. By studying the code and comments, you can gain a deep understanding of how MCP works and how to implement your own MCP servers for various use cases.
 
-The project emphasizes not just what code to write, but why specific approaches are taken, making it an excellent learning resource for understanding both MCP and general best practices in TypeScript application development. 
+The project emphasizes not just what code to write, but why specific approaches are taken, including how to balance simplicity with functionality. This makes it an excellent learning resource for understanding both MCP and general best practices in TypeScript application development. 
