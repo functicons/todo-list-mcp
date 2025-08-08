@@ -14,6 +14,14 @@
 import { z } from 'zod';
 
 /**
+ * TodoStatus Enum
+ * 
+ * This defines the possible statuses for a Todo item.
+ */
+export const TodoStatus = z.enum(['pending', 'completed', 'canceled']);
+export type TodoStatus = z.infer<typeof TodoStatus>;
+
+/**
  * Todo Interface
  * 
  * This defines the structure of a Todo item in our application.
@@ -21,15 +29,14 @@ import { z } from 'zod';
  * - seqno is a per-list sequence number for ordering
  * - Timestamps track creation and updates for data lifecycle management
  * - Description supports markdown for rich text formatting
- * - Completion status is tracked both as a boolean flag and with a timestamp
+ * - status tracks the current state of the todo item
  */
 export interface Todo {
   listId: string; // ID of the TodoList this todo belongs to
   seqno: number; // Sequence number per list, starting from 1
   title: string;
   description: string; // Markdown format
-  completed: boolean; // Computed from completedAt for backward compatibility
-  completedAt: string | null; // ISO timestamp when completed, null if not completed
+  status: TodoStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -53,18 +60,11 @@ export const CreateTodoSchema = z.object({
   description: z.string().min(1, "Description is required"),
 });
 
-// Schema for updating a todo - requires listId and seqno. title and description are optional
+// Schema for updating a todo - requires listId, seqno and status.
 export const UpdateTodoSchema = z.object({
   listId: z.string().uuid("Invalid TodoList ID"),
   seqno: z.number().int().positive("seqno must be a positive integer"),
-  title: z.string().min(1, "Title is required").optional(),
-  description: z.string().min(1, "Description is required").optional(),
-});
-
-// Schema for completing a todo - requires listId and seqno
-export const CompleteTodoSchema = z.object({
-  listId: z.string().uuid("Invalid TodoList ID"),
-  seqno: z.number().int().positive("seqno must be a positive integer"),
+  status: TodoStatus,
 });
 
 // Schema for deleting a todo - requires listId and seqno
@@ -103,8 +103,7 @@ export function createTodo(data: z.infer<typeof CreateTodoSchema>, seqno: number
     seqno: seqno,
     title: data.title,
     description: data.description,
-    completed: false,
-    completedAt: null,
+    status: 'pending',
     createdAt: now,
     updatedAt: now,
   };

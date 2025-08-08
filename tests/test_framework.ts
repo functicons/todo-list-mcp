@@ -135,9 +135,7 @@ export class TodoAssertions {
       assert.equal(actual.seqno, expected.seqno, 'Todo seqno should match');
     }
     
-    assert.equal(typeof actual.completed, 'boolean', 'Todo should have boolean completed');
-    assert.ok(actual.completedAt === null || typeof actual.completedAt === 'string', 'Todo completedAt should be null or string');
-    assert.equal(actual.completed, actual.completedAt !== null, 'Todo completed should match completedAt state');
+    assert.equal(typeof actual.status, 'string', 'Todo should have string status');
     
     assert.equal(typeof actual.createdAt, 'string', 'Todo should have createdAt timestamp');
     assert.equal(typeof actual.updatedAt, 'string', 'Todo should have updatedAt timestamp');
@@ -153,23 +151,7 @@ export class TodoAssertions {
     assert.equal(actual.length, expectedLength, message || `Array should have ${expectedLength} items`);
   }
 
-  /**
-   * Assert that a todo is completed
-   */
-  static assertTodoCompleted(todo: any) {
-    assert.equal(todo.completed, true, 'Todo should be completed');
-    assert.ok(todo.completedAt, 'Todo should have completedAt timestamp');
-    assert.equal(typeof todo.completedAt, 'string', 'Todo completedAt should be string');
-    assert.ok(new Date(todo.completedAt).getTime() > 0, 'Todo completedAt should be valid date');
-  }
-
-  /**
-   * Assert that a todo is not completed
-   */
-  static assertTodoNotCompleted(todo: any) {
-    assert.equal(todo.completed, false, 'Todo should not be completed');
-    assert.equal(todo.completedAt, null, 'Todo should not have completedAt timestamp');
-  }
+  
 }
 
 /**
@@ -278,24 +260,7 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
         const created = await store.createTodo(todo);
         
         TodoAssertions.assertTodo(created, { title: 'Integration Test Todo', listId: todoList.id, seqno: 1 });
-        TodoAssertions.assertTodoNotCompleted(created);
-      } finally {
-        await store.close();
-      }
-    });
-
-    test(`${storeName}: Complete Todo`, async () => {
-      const store = await createStore();
-      try {
-        const todoList = TestUtils.createSampleTodoList();
-        await store.createTodoList(todoList);
-        
-        const todo = TestUtils.createSampleTodo(todoList.id, 1);
-        await store.createTodo(todo);
-        
-        const completed = await store.completeTodo(todo.listId, todo.seqno);
-        TodoAssertions.assertTodo(completed!, { listId: todoList.id, seqno: 1 });
-        TodoAssertions.assertTodoCompleted(completed!);
+        assert.equal(created.status, 'pending', 'New todo should have pending status');
       } finally {
         await store.close();
       }
@@ -370,26 +335,6 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
       }
     });
 
-    test(`${storeName}: Get Active Todos`, async () => {
-      const store = await createStore();
-      try {
-        const todoList = TestUtils.createSampleTodoList();
-        await store.createTodoList(todoList);
-        
-        const todo1 = TestUtils.createSampleTodo(todoList.id, 1, { title: 'Active Todo' });
-        const todo2 = TestUtils.createSampleTodo(todoList.id, 2, { title: 'Completed Todo' });
-        
-        await store.createTodo(todo1);
-        await store.createTodo(todo2);
-        await store.completeTodo(todo2.listId, todo2.seqno); // Complete one todo
-        
-        const activeTodos = await store.getActiveTodos();
-        TodoAssertions.assertArrayLength(activeTodos, 1, 'Should have 1 active todo');
-        assert.equal(activeTodos[0].title, 'Active Todo');
-        TodoAssertions.assertTodoNotCompleted(activeTodos[0]);
-      } finally {
-        await store.close();
-      }
-    });
+    
   });
 }

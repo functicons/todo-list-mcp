@@ -26,7 +26,6 @@ import { z } from "zod";
 import {
   CreateTodoSchema,
   UpdateTodoSchema,
-  CompleteTodoSchema,
   DeleteTodoSchema,
   ListTodosByListIdSchema
 } from "./models/Todo.js";
@@ -194,22 +193,16 @@ server.tool(
  */
 server.tool(
   "update-todo",
-  "Update a todo title or description",
+  "Update a todo's status",
   {
     listId: z.string().uuid("Invalid TodoList ID"),
     seqno: z.number().int().positive("Sequence number must be a positive integer"),
-    title: z.string().min(1, "Title is required").optional(),
-    description: z.string().min(1, "Description is required").optional(),
+    status: z.enum(['pending', 'completed', 'canceled']),
   },
-  async ({ listId, seqno, title, description }) => {
+  async ({ listId, seqno, status }) => {
     const result = await safeExecute(async () => {
-      const validatedData = UpdateTodoSchema.parse({ listId, seqno, title, description });
+      const validatedData = UpdateTodoSchema.parse({ listId, seqno, status });
       
-      // Ensure at least one field is being updated
-      if (!title && !description) {
-        throw new Error("At least one field (title or description) must be provided");
-      }
-
       const updatedTodo = await todoService.updateTodo(validatedData);
       if (!updatedTodo) {
         throw new Error(`Todo with seqno ${seqno} in list ${listId} not found`);
@@ -223,47 +216,6 @@ server.tool(
     }
 
     return createSuccessResponse(`✅ Todo Updated:\n\n${result}`);
-  }
-);
-
-/**
- * Tool 5: Complete a todo
- * 
- * This tool:
- * 1. Validates the todo ID
- * 2. Marks the todo as completed using the service
- * 3. Returns the formatted completed todo
- * 
- * WHY SEPARATE FROM UPDATE?
- * - Provides a dedicated semantic action for completion
- * - Simplifies the client interaction model
- * - It's easier for the LLM to match the user intent with the completion action
- * - Makes it clear in the UI that the todo is done
- */
-server.tool(
-  "complete-todo",
-  "Mark a todo as completed",
-  {
-    listId: z.string().uuid("Invalid TodoList ID"),
-    seqno: z.number().int().positive("Sequence number must be a positive integer"),
-  },
-  async ({ listId, seqno }) => {
-    const result = await safeExecute(async () => {
-      const validatedData = CompleteTodoSchema.parse({ listId, seqno });
-      const completedTodo = await todoService.completeTodo(validatedData);
-      
-      if (!completedTodo) {
-        throw new Error(`Todo with seqno ${seqno} in list ${listId} not found`);
-      }
-
-      return formatTodo(completedTodo);
-    }, "Failed to complete todo");
-
-    if (result instanceof Error) {
-      return createErrorResponse(result.message);
-    }
-
-    return createSuccessResponse(`✅ Todo Completed:\n\n${result}`);
   }
 );
 

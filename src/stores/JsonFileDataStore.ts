@@ -242,22 +242,6 @@ export class JsonFileDataStore implements DataStore {
       .sort((a, b) => a.seqno - b.seqno);
   }
 
-  async getActiveTodos(): Promise<Todo[]> {
-    return this.data.todos
-      .filter(todo => todo.completedAt === null)
-      .sort((a, b) => {
-        if (a.listId < b.listId) return -1;
-        if (a.listId > b.listId) return 1;
-        return a.seqno - b.seqno;
-      });
-  }
-
-  async getActiveTodosByListId(listId: string): Promise<Todo[]> {
-    return this.data.todos
-      .filter(todo => todo.listId === listId && todo.completedAt === null)
-      .sort((a, b) => a.seqno - b.seqno);
-  }
-
   async updateTodo(listId: string, seqno: number, updates: Partial<Omit<Todo, 'listId' | 'seqno' | 'createdAt'>>): Promise<Todo | undefined> {
     const index = this.data.todos.findIndex(todo => todo.listId === listId && todo.seqno === seqno);
     if (index === -1) return undefined;
@@ -270,17 +254,11 @@ export class JsonFileDataStore implements DataStore {
       seqno: existing.seqno,
       createdAt: existing.createdAt,
       updatedAt: new Date().toISOString(),
-      completed: updates.completedAt !== undefined ? updates.completedAt !== null : existing.completed
     };
 
     this.data.todos[index] = updated;
     await this.saveData();
     return updated;
-  }
-
-  async completeTodo(listId: string, seqno: number): Promise<Todo | undefined> {
-    const now = new Date().toISOString();
-    return this.updateTodo(listId, seqno, { completedAt: now });
   }
 
   async deleteTodo(listId: string, seqno: number): Promise<boolean> {

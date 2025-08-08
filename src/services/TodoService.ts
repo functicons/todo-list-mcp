@@ -16,7 +16,6 @@ import {
   createTodo,
   CreateTodoSchema,
   UpdateTodoSchema,
-  CompleteTodoSchema,
   DeleteTodoSchema
 } from '../models/Todo.js';
 import { z } from 'zod';
@@ -86,7 +85,8 @@ class TodoService {
    */
   async getActiveTodos(): Promise<Todo[]> {
     const store = dataService.getStore();
-    return await store.getActiveTodos();
+    const allTodos = await store.getAllTodos();
+    return allTodos.filter(todo => todo.status === 'pending');
   }
 
   /**
@@ -97,21 +97,12 @@ class TodoService {
    */
   async updateTodo(data: z.infer<typeof UpdateTodoSchema>): Promise<Todo | undefined> {
     const store = dataService.getStore();
-    const { listId, seqno, ...updates } = data;
+    const { listId, seqno, status } = data;
     
-    return await store.updateTodo(listId, seqno, updates);
+    return await store.updateTodo(listId, seqno, { status });
   }
 
-  /**
-   * Mark a todo as completed
-   * 
-   * @param data The completion data (listId, seqno)
-   * @returns Promise resolving to the updated Todo if found, undefined otherwise
-   */
-  async completeTodo(data: z.infer<typeof CompleteTodoSchema>): Promise<Todo | undefined> {
-    const store = dataService.getStore();
-    return await store.completeTodo(data.listId, data.seqno);
-  }
+  
 
   /**
    * Delete a todo
@@ -165,7 +156,8 @@ class TodoService {
    */
   async getActiveTodosByListId(listId: string): Promise<Todo[]> {
     const store = dataService.getStore();
-    return await store.getActiveTodosByListId(listId);
+    const todos = await store.getTodosByListId(listId);
+    return todos.filter(todo => todo.status === 'pending');
   }
 
   /**

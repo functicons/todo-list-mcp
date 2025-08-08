@@ -30,11 +30,13 @@ import { TodoList } from "../models/TodoList.js";
  * @returns A markdown-formatted string representation
  */
 export function formatTodo(todo: Todo): string {
+  const statusIcon = todo.status === 'completed' ? '✅' : (todo.status === 'pending' ? '⏳' : '❌');
   return `
-## ${todo.title} ${todo.completed ? '✅' : '⏳'}
+## ${todo.title} ${statusIcon}
 
 SeqNo: ${todo.seqno}
 List ID: ${todo.listId}
+Status: ${todo.status}
 Created: ${new Date(todo.createdAt).toLocaleString()}
 Updated: ${new Date(todo.updatedAt).toLocaleString()}
 

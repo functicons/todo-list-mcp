@@ -31,10 +31,7 @@ export interface DataStore {
   getTodo(listId: string, seqno: number): Promise<Todo | undefined>;
   getAllTodos(): Promise<Todo[]>;
   getTodosByListId(listId: string): Promise<Todo[]>;
-  getActiveTodos(): Promise<Todo[]>;
-  getActiveTodosByListId(listId: string): Promise<Todo[]>;
   updateTodo(listId: string, seqno: number, updates: Partial<Omit<Todo, 'listId' | 'seqno' | 'createdAt'>>): Promise<Todo | undefined>;
-  completeTodo(listId: string, seqno: number): Promise<Todo | undefined>;
   deleteTodo(listId: string, seqno: number): Promise<boolean>;
   
   // Search operations

@@ -86,10 +86,6 @@ async function runAllTests() {
         const todo = await store.getTodo('non-existent-list-id', 999);
         assert.equal(todo, undefined);
         
-        // Try to complete non-existent todo
-        const completed = await store.completeTodo('non-existent-list-id', 999);
-        assert.equal(completed, undefined);
-        
       } finally {
         await store.close();
       }
@@ -280,7 +276,7 @@ async function runAllTests() {
       }
     });
 
-    test('Todo completion properly sets timestamps', async () => {
+    test('Todo status is properly updated', async () => {
       const store = await TestUtils.createJsonStore();
       try {
         const todoList = TestUtils.createSampleTodoList();
@@ -289,17 +285,12 @@ async function runAllTests() {
         const todo = TestUtils.createSampleTodo(todoList.id, 1);
         const created = await store.createTodo(todo);
         
-        TodoAssertions.assertTodoNotCompleted(created);
+        assert.equal(created.status, 'pending', 'New todo should have pending status');
         
-        const completed = await store.completeTodo(created.listId, created.seqno);
-        assert.ok(completed);
+        const updated = await store.updateTodo(created.listId, created.seqno, { status: 'completed' });
+        assert.ok(updated);
         
-        TodoAssertions.assertTodoCompleted(completed);
-        
-        // CompletedAt should be after createdAt
-        const completedTime = new Date(completed.completedAt!).getTime();
-        const createdTime = new Date(completed.createdAt).getTime();
-        assert.ok(completedTime >= createdTime, 'CompletedAt should be >= createdAt');
+        assert.equal(updated.status, 'completed', 'Todo status should be updated to completed');
         
       } finally {
         await store.close();

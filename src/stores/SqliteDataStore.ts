@@ -96,7 +96,7 @@ export class SqliteDataStore implements DataStore {
         seqno INTEGER NOT NULL,
         title TEXT NOT NULL,
         description TEXT NOT NULL,
-        completedAt TEXT NULL,
+        status TEXT NOT NULL,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
         PRIMARY KEY (listId, seqno),
@@ -162,8 +162,7 @@ export class SqliteDataStore implements DataStore {
       seqno: row.seqno,
       title: row.title,
       description: row.description,
-      completedAt: row.completedAt,
-      completed: row.completedAt !== null,
+      status: row.status,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt
     };
@@ -240,11 +239,11 @@ export class SqliteDataStore implements DataStore {
   async createTodo(todo: Todo): Promise<Todo> {
     try {
       const stmt = this.db.prepare(`
-        INSERT INTO todos (listId, seqno, title, description, completedAt, createdAt, updatedAt)
+        INSERT INTO todos (listId, seqno, title, description, status, createdAt, updatedAt)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
       
-      stmt.run(todo.listId, todo.seqno, todo.title, todo.description, todo.completedAt, todo.createdAt, todo.updatedAt);
+      stmt.run(todo.listId, todo.seqno, todo.title, todo.description, todo.status, todo.createdAt, todo.updatedAt);
       return todo;
     } catch (error: any) {
       if (error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
@@ -287,18 +286,6 @@ export class SqliteDataStore implements DataStore {
     return rows.map(row => this.rowToTodo(row));
   }
 
-  async getActiveTodos(): Promise<Todo[]> {
-    const stmt = this.db.prepare('SELECT * FROM todos WHERE completedAt IS NULL ORDER BY listId, seqno ASC');
-    const rows = stmt.all() as any[];
-    return rows.map(row => this.rowToTodo(row));
-  }
-
-  async getActiveTodosByListId(listId: string): Promise<Todo[]> {
-    const stmt = this.db.prepare('SELECT * FROM todos WHERE listId = ? AND completedAt IS NULL ORDER BY seqno ASC');
-    const rows = stmt.all(listId) as any[];
-    return rows.map(row => this.rowToTodo(row));
-  }
-
   async updateTodo(listId: string, seqno: number, updates: Partial<Omit<Todo, 'listId' | 'seqno' | 'createdAt'>>): Promise<Todo | undefined> {
     const existing = await this.getTodo(listId, seqno);
     if (!existing) return undefined;
@@ -306,25 +293,18 @@ export class SqliteDataStore implements DataStore {
     const updatedAt = new Date().toISOString();
     const stmt = this.db.prepare(`
       UPDATE todos
-      SET title = ?, description = ?, completedAt = ?, updatedAt = ?
+      SET status = ?, updatedAt = ?
       WHERE listId = ? AND seqno = ?
     `);
     
     stmt.run(
-      updates.title || existing.title,
-      updates.description || existing.description,
-      updates.completedAt !== undefined ? updates.completedAt : existing.completedAt,
+      updates.status || existing.status,
       updatedAt,
       listId,
       seqno
     );
     
     return await this.getTodo(listId, seqno);
-  }
-
-  async completeTodo(listId: string, seqno: number): Promise<Todo | undefined> {
-    const now = new Date().toISOString();
-    return this.updateTodo(listId, seqno, { completedAt: now });
   }
 
   async deleteTodo(listId: string, seqno: number): Promise<boolean> {
