@@ -13,7 +13,8 @@ import { DataStore } from '../src/interfaces/DataStore.js';
 import { JsonFileDataStore } from '../src/stores/JsonFileDataStore.js';
 import { SqliteDataStore } from '../src/stores/SqliteDataStore.js';
 import { createTodoList } from '../src/models/TodoList.js';
-import { createTodo } from '../src/models/Todo.js';
+import { createTodo, CreateTodoSchema } from '../src/models/Todo.js';
+import { z } from 'zod';
 
 /**
  * Test utilities for creating and managing test data stores
@@ -76,13 +77,13 @@ export class TestUtils {
   /**
    * Create sample todo data
    */
-  static createSampleTodo(listId: string, overrides: Partial<Parameters<typeof createTodo>[0]> = {}) {
+  static createSampleTodo(listId: string, seqno: number, overrides: Partial<Omit<z.infer<typeof CreateTodoSchema>, 'listId'> > = {}) {
     return createTodo({
       listId,
       title: 'Test Todo',
       description: 'A test todo item',
       ...overrides
-    });
+    }, seqno);
   }
 }
 
@@ -116,11 +117,11 @@ export class TodoAssertions {
    */
   static assertTodo(actual: any, expected: Partial<any>) {
     assert.ok(actual, 'Todo should exist');
-    assert.equal(typeof actual.id, 'string', 'Todo should have string id');
-    assert.ok(actual.id.length > 0, 'Todo id should not be empty');
     assert.equal(typeof actual.listId, 'string', 'Todo should have string listId');
     assert.ok(actual.listId.length > 0, 'Todo listId should not be empty');
-    
+    assert.equal(typeof actual.seqno, 'number', 'Todo should have number seqno');
+    assert.ok(actual.seqno > 0, 'Todo seqno should be a positive integer');
+
     if (expected.title) {
       assert.equal(actual.title, expected.title, 'Todo title should match');
     }
@@ -129,6 +130,9 @@ export class TodoAssertions {
     }
     if (expected.listId) {
       assert.equal(actual.listId, expected.listId, 'Todo listId should match');
+    }
+    if (expected.seqno) {
+      assert.equal(actual.seqno, expected.seqno, 'Todo seqno should match');
     }
     
     assert.equal(typeof actual.completed, 'boolean', 'Todo should have boolean completed');
@@ -251,12 +255,12 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
         const todoList = TestUtils.createSampleTodoList();
         await store.createTodoList(todoList);
         
-        const todo = TestUtils.createSampleTodo(todoList.id);
+        const todo = TestUtils.createSampleTodo(todoList.id, 1);
         await store.createTodo(todo);
         
         await store.deleteTodoList(todoList.id);
         
-        const retrievedTodo = await store.getTodo(todo.id);
+        const retrievedTodo = await store.getTodo(todo.listId, todo.seqno);
         assert.equal(retrievedTodo, undefined, 'Todo should be deleted when TodoList is deleted');
       } finally {
         await store.close();
@@ -270,10 +274,10 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
         const todoList = TestUtils.createSampleTodoList();
         await store.createTodoList(todoList);
         
-        const todo = TestUtils.createSampleTodo(todoList.id, { title: 'Integration Test Todo' });
+        const todo = TestUtils.createSampleTodo(todoList.id, 1, { title: 'Integration Test Todo' });
         const created = await store.createTodo(todo);
         
-        TodoAssertions.assertTodo(created, { title: 'Integration Test Todo', listId: todoList.id });
+        TodoAssertions.assertTodo(created, { title: 'Integration Test Todo', listId: todoList.id, seqno: 1 });
         TodoAssertions.assertTodoNotCompleted(created);
       } finally {
         await store.close();
@@ -286,11 +290,11 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
         const todoList = TestUtils.createSampleTodoList();
         await store.createTodoList(todoList);
         
-        const todo = TestUtils.createSampleTodo(todoList.id);
+        const todo = TestUtils.createSampleTodo(todoList.id, 1);
         await store.createTodo(todo);
         
-        const completed = await store.completeTodo(todo.id);
-        TodoAssertions.assertTodo(completed!, { listId: todoList.id });
+        const completed = await store.completeTodo(todo.listId, todo.seqno);
+        TodoAssertions.assertTodo(completed!, { listId: todoList.id, seqno: 1 });
         TodoAssertions.assertTodoCompleted(completed!);
       } finally {
         await store.close();
@@ -303,9 +307,9 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
         const todoList = TestUtils.createSampleTodoList();
         await store.createTodoList(todoList);
         
-        await store.createTodo(TestUtils.createSampleTodo(todoList.id, { title: 'Learn TypeScript' }));
-        await store.createTodo(TestUtils.createSampleTodo(todoList.id, { title: 'Learn JavaScript' }));
-        await store.createTodo(TestUtils.createSampleTodo(todoList.id, { title: 'Practice Piano' }));
+        await store.createTodo(TestUtils.createSampleTodo(todoList.id, 1, { title: 'Learn TypeScript' }));
+        await store.createTodo(TestUtils.createSampleTodo(todoList.id, 2, { title: 'Learn JavaScript' }));
+        await store.createTodo(TestUtils.createSampleTodo(todoList.id, 3, { title: 'Practice Piano' }));
         
         const results = await store.searchTodosByTitle('Learn');
         TodoAssertions.assertArrayLength(results, 2, 'Should find 2 todos containing "Learn"');
@@ -326,9 +330,9 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
         await store.createTodoList(todoList1);
         await store.createTodoList(todoList2);
         
-        await store.createTodo(TestUtils.createSampleTodo(todoList1.id, { title: 'Todo 1' }));
-        await store.createTodo(TestUtils.createSampleTodo(todoList1.id, { title: 'Todo 2' }));
-        await store.createTodo(TestUtils.createSampleTodo(todoList2.id, { title: 'Todo 3' }));
+        await store.createTodo(TestUtils.createSampleTodo(todoList1.id, 1, { title: 'Todo 1' }));
+        await store.createTodo(TestUtils.createSampleTodo(todoList1.id, 2, { title: 'Todo 2' }));
+        await store.createTodo(TestUtils.createSampleTodo(todoList2.id, 1, { title: 'Todo 3' }));
         
         const list1Todos = await store.getTodosByListId(todoList1.id);
         const list2Todos = await store.getTodosByListId(todoList2.id);
@@ -344,18 +348,40 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
       }
     });
 
+    test(`${storeName}: Get Todos by List ID should return todos ordered by seqno`, async () => {
+      const store = await createStore();
+      try {
+        const todoList = TestUtils.createSampleTodoList();
+        await store.createTodoList(todoList);
+        
+        // Create todos with seqno in non-sequential order
+        await store.createTodo(TestUtils.createSampleTodo(todoList.id, 3, { title: 'Todo 3' }));
+        await store.createTodo(TestUtils.createSampleTodo(todoList.id, 1, { title: 'Todo 1' }));
+        await store.createTodo(TestUtils.createSampleTodo(todoList.id, 2, { title: 'Todo 2' }));
+        
+        const todos = await store.getTodosByListId(todoList.id);
+        
+        TodoAssertions.assertArrayLength(todos, 3, 'Should have 3 todos');
+        assert.equal(todos[0].seqno, 1, 'First todo should have seqno 1');
+        assert.equal(todos[1].seqno, 2, 'Second todo should have seqno 2');
+        assert.equal(todos[2].seqno, 3, 'Third todo should have seqno 3');
+      } finally {
+        await store.close();
+      }
+    });
+
     test(`${storeName}: Get Active Todos`, async () => {
       const store = await createStore();
       try {
         const todoList = TestUtils.createSampleTodoList();
         await store.createTodoList(todoList);
         
-        const todo1 = TestUtils.createSampleTodo(todoList.id, { title: 'Active Todo' });
-        const todo2 = TestUtils.createSampleTodo(todoList.id, { title: 'Completed Todo' });
+        const todo1 = TestUtils.createSampleTodo(todoList.id, 1, { title: 'Active Todo' });
+        const todo2 = TestUtils.createSampleTodo(todoList.id, 2, { title: 'Completed Todo' });
         
         await store.createTodo(todo1);
         await store.createTodo(todo2);
-        await store.completeTodo(todo2.id); // Complete one todo
+        await store.completeTodo(todo2.listId, todo2.seqno); // Complete one todo
         
         const activeTodos = await store.getActiveTodos();
         TodoAssertions.assertArrayLength(activeTodos, 1, 'Should have 1 active todo');

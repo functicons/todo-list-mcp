@@ -33,7 +33,7 @@ async function runAllTests() {
       
       try {
         // Create identical data in both stores
-        const todoList = TestUtils.createSampleTodoList({ 
+        const todoList = TestUtils.createSampleTodoList({
           name: 'Compatibility Test',
           description: 'Testing cross-store compatibility'
         });
@@ -47,7 +47,7 @@ async function runAllTests() {
         assert.equal(jsonCreated.description, sqliteCreated.description);
         
         // Test todo operations
-        const todo = TestUtils.createSampleTodo(todoList.id, {
+        const todo = TestUtils.createSampleTodo(todoList.id, 1, {
           title: 'Cross-store todo',
           description: 'Testing cross-store todo compatibility'
         });
@@ -55,7 +55,7 @@ async function runAllTests() {
         const jsonTodo = await jsonStore.createTodo(todo);
         const sqliteTodo = await sqliteStore.createTodo(todo);
         
-        assert.equal(jsonTodo.id, sqliteTodo.id);
+        assert.equal(jsonTodo.seqno, sqliteTodo.seqno);
         assert.equal(jsonTodo.title, sqliteTodo.title);
         assert.equal(jsonTodo.listId, sqliteTodo.listId);
         
@@ -83,11 +83,11 @@ async function runAllTests() {
         assert.equal(deleted, false);
         
         // Try to get non-existent todo
-        const todo = await store.getTodo('non-existent-id');
+        const todo = await store.getTodo('non-existent-list-id', 999);
         assert.equal(todo, undefined);
         
         // Try to complete non-existent todo
-        const completed = await store.completeTodo('non-existent-id');
+        const completed = await store.completeTodo('non-existent-list-id', 999);
         assert.equal(completed, undefined);
         
       } finally {
@@ -117,7 +117,7 @@ async function runAllTests() {
         
         // Create multiple todos concurrently
         const todoPromises = Array.from({ length: 5 }, (_, i) => {
-          const todo = TestUtils.createSampleTodo(todoList.id, { 
+          const todo = TestUtils.createSampleTodo(todoList.id, i + 1, {
             title: `Concurrent Todo ${i + 1}` 
           });
           return store.createTodo(todo);
@@ -128,9 +128,10 @@ async function runAllTests() {
         // All should be created successfully
         assert.equal(todos.length, 5);
         todos.forEach((todo, index) => {
-          TodoAssertions.assertTodo(todo, { 
+          TodoAssertions.assertTodo(todo, {
             title: `Concurrent Todo ${index + 1}`,
-            listId: todoList.id 
+            listId: todoList.id,
+            seqno: index + 1
           });
         });
         
@@ -169,7 +170,7 @@ async function runAllTests() {
     test('JsonFileDataStore: Throws ConstraintViolationException for non-existent TodoList reference', async () => {
       const store = await TestUtils.createJsonStore();
       try {
-        const todo = TestUtils.createSampleTodo('non-existent-list-id');
+        const todo = TestUtils.createSampleTodo('non-existent-list-id', 1);
         
         await assert.rejects(
           async () => {
@@ -186,24 +187,24 @@ async function runAllTests() {
       }
     });
 
-    test('SqliteDataStore: Throws ConstraintViolationException for duplicate Todo ID', async () => {
+    test('SqliteDataStore: Throws ConstraintViolationException for duplicate Todo seqno', async () => {
       const store = await TestUtils.createSqliteStore();
       try {
         const todoList = TestUtils.createSampleTodoList();
         await store.createTodoList(todoList);
         
-        const todo = TestUtils.createSampleTodo(todoList.id, { title: 'Test Todo' });
+        const todo = TestUtils.createSampleTodo(todoList.id, 1, { title: 'Test Todo' });
         await store.createTodo(todo);
         
         await assert.rejects(
           async () => {
-            await store.createTodo(todo); // Same ID again
+            await store.createTodo(todo); // Same seqno again
           },
           {
             name: 'ConstraintViolationException',
             message: /already exists/
           },
-          'Should throw ConstraintViolationException for duplicate Todo ID'
+          'Should throw ConstraintViolationException for duplicate Todo seqno'
         );
       } finally {
         await store.close();
@@ -213,7 +214,7 @@ async function runAllTests() {
     test('SqliteDataStore: Throws ConstraintViolationException for foreign key violation', async () => {
       const store = await TestUtils.createSqliteStore();
       try {
-        const todo = TestUtils.createSampleTodo('non-existent-list-id');
+        const todo = TestUtils.createSampleTodo('non-existent-list-id', 1);
         
         await assert.rejects(
           async () => {
@@ -262,8 +263,8 @@ async function runAllTests() {
         // Wait a bit to ensure timestamp difference
         await new Promise(resolve => setTimeout(resolve, 10));
         
-        const updated = await store.updateTodoList(created.id, { 
-          description: 'Updated description' 
+        const updated = await store.updateTodoList(created.id, {
+          description: 'Updated description'
         });
         
         assert.ok(updated);
@@ -285,12 +286,12 @@ async function runAllTests() {
         const todoList = TestUtils.createSampleTodoList();
         await store.createTodoList(todoList);
         
-        const todo = TestUtils.createSampleTodo(todoList.id);
+        const todo = TestUtils.createSampleTodo(todoList.id, 1);
         const created = await store.createTodo(todo);
         
         TodoAssertions.assertTodoNotCompleted(created);
         
-        const completed = await store.completeTodo(created.id);
+        const completed = await store.completeTodo(created.listId, created.seqno);
         assert.ok(completed);
         
         TodoAssertions.assertTodoCompleted(completed);
@@ -311,14 +312,14 @@ async function runAllTests() {
         const todoList = TestUtils.createSampleTodoList();
         await store.createTodoList(todoList);
         
-        await store.createTodo(TestUtils.createSampleTodo(todoList.id, { 
-          title: 'Learn TypeScript Programming' 
+        await store.createTodo(TestUtils.createSampleTodo(todoList.id, 1, {
+          title: 'Learn TypeScript Programming'
         }));
-        await store.createTodo(TestUtils.createSampleTodo(todoList.id, { 
-          title: 'typescript tutorial' 
+        await store.createTodo(TestUtils.createSampleTodo(todoList.id, 2, {
+          title: 'typescript tutorial'
         }));
-        await store.createTodo(TestUtils.createSampleTodo(todoList.id, { 
-          title: 'JavaScript Basics' 
+        await store.createTodo(TestUtils.createSampleTodo(todoList.id, 3, {
+          title: 'JavaScript Basics'
         }));
         
         // Test case-insensitive search

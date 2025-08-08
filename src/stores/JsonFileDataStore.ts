@@ -41,7 +41,7 @@ export class JsonFileDataStore implements DataStore {
     this.data = {
       todoLists: [],
       todos: [],
-      version: '1.0.0'
+      version: '2.0.0' // New version with seqno
     };
   }
 
@@ -70,8 +70,15 @@ export class JsonFileDataStore implements DataStore {
         }
         
         // Handle migration if needed
-        if (!this.data.version) {
-          this.data.version = '1.0.0';
+        if (!this.data.version || this.data.version < '2.0.0') {
+          if (this.data.todos && this.data.todos.length > 0 && 'id' in this.data.todos[0]) {
+            throw new DataValidationException(
+              'Incompatible data schema: todos have "id" field instead of "seqno". Manual migration required.',
+              'todos schema v1',
+              'todos schema v2'
+            );
+          }
+          this.data.version = '2.0.0';
         }
         
         // Ensure required arrays exist
@@ -156,7 +163,9 @@ export class JsonFileDataStore implements DataStore {
   }
 
   async getAllTodoLists(): Promise<TodoList[]> {
-    return [...this.data.todoLists];
+    return [...this.data.todoLists].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   }
 
   async updateTodoList(id: string, updates: Partial<Omit<TodoList, 'id' | 'createdAt'>>): Promise<TodoList | undefined> {
@@ -194,10 +203,10 @@ export class JsonFileDataStore implements DataStore {
   // Todo operations
 
   async createTodo(todo: Todo): Promise<Todo> {
-    // Check for duplicate ID
-    if (this.data.todos.some(t => t.id === todo.id)) {
+    // Check for duplicate (listId, seqno)
+    if (this.data.todos.some(t => t.listId === todo.listId && t.seqno === todo.seqno)) {
       throw new ConstraintViolationException(
-        `Todo with ID '${todo.id}' already exists`,
+        `Todo with listId '${todo.listId}' and seqno '${todo.seqno}' already exists`,
         'UNIQUE'
       );
     }
@@ -215,35 +224,50 @@ export class JsonFileDataStore implements DataStore {
     return todo;
   }
 
-  async getTodo(id: string): Promise<Todo | undefined> {
-    return this.data.todos.find(todo => todo.id === id);
+  async getTodo(listId: string, seqno: number): Promise<Todo | undefined> {
+    return this.data.todos.find(todo => todo.listId === listId && todo.seqno === seqno);
   }
 
   async getAllTodos(): Promise<Todo[]> {
-    return [...this.data.todos];
+    return [...this.data.todos].sort((a, b) => {
+      if (a.listId < b.listId) return -1;
+      if (a.listId > b.listId) return 1;
+      return a.seqno - b.seqno;
+    });
   }
 
   async getTodosByListId(listId: string): Promise<Todo[]> {
-    return this.data.todos.filter(todo => todo.listId === listId);
+    return this.data.todos
+      .filter(todo => todo.listId === listId)
+      .sort((a, b) => a.seqno - b.seqno);
   }
 
   async getActiveTodos(): Promise<Todo[]> {
-    return this.data.todos.filter(todo => todo.completedAt === null);
+    return this.data.todos
+      .filter(todo => todo.completedAt === null)
+      .sort((a, b) => {
+        if (a.listId < b.listId) return -1;
+        if (a.listId > b.listId) return 1;
+        return a.seqno - b.seqno;
+      });
   }
 
   async getActiveTodosByListId(listId: string): Promise<Todo[]> {
-    return this.data.todos.filter(todo => todo.listId === listId && todo.completedAt === null);
+    return this.data.todos
+      .filter(todo => todo.listId === listId && todo.completedAt === null)
+      .sort((a, b) => a.seqno - b.seqno);
   }
 
-  async updateTodo(id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>): Promise<Todo | undefined> {
-    const index = this.data.todos.findIndex(todo => todo.id === id);
+  async updateTodo(listId: string, seqno: number, updates: Partial<Omit<Todo, 'listId' | 'seqno' | 'createdAt'>>): Promise<Todo | undefined> {
+    const index = this.data.todos.findIndex(todo => todo.listId === listId && todo.seqno === seqno);
     if (index === -1) return undefined;
 
     const existing = this.data.todos[index];
     const updated = {
       ...existing,
       ...updates,
-      id: existing.id,
+      listId: existing.listId,
+      seqno: existing.seqno,
       createdAt: existing.createdAt,
       updatedAt: new Date().toISOString(),
       completed: updates.completedAt !== undefined ? updates.completedAt !== null : existing.completed
@@ -254,14 +278,14 @@ export class JsonFileDataStore implements DataStore {
     return updated;
   }
 
-  async completeTodo(id: string): Promise<Todo | undefined> {
+  async completeTodo(listId: string, seqno: number): Promise<Todo | undefined> {
     const now = new Date().toISOString();
-    return this.updateTodo(id, { completedAt: now, updatedAt: now });
+    return this.updateTodo(listId, seqno, { completedAt: now });
   }
 
-  async deleteTodo(id: string): Promise<boolean> {
+  async deleteTodo(listId: string, seqno: number): Promise<boolean> {
     const initialLength = this.data.todos.length;
-    this.data.todos = this.data.todos.filter(todo => todo.id !== id);
+    this.data.todos = this.data.todos.filter(todo => !(todo.listId === listId && todo.seqno === seqno));
     
     const wasDeleted = this.data.todos.length < initialLength;
     if (wasDeleted) {
@@ -274,14 +298,22 @@ export class JsonFileDataStore implements DataStore {
 
   async searchTodosByTitle(title: string): Promise<Todo[]> {
     const searchTerm = title.toLowerCase();
-    return this.data.todos.filter(todo => 
-      todo.title.toLowerCase().includes(searchTerm)
-    );
+    return this.data.todos
+      .filter(todo => todo.title.toLowerCase().includes(searchTerm))
+      .sort((a, b) => {
+        if (a.listId < b.listId) return -1;
+        if (a.listId > b.listId) return 1;
+        return a.seqno - b.seqno;
+      });
   }
 
   async searchTodosByDate(dateStr: string): Promise<Todo[]> {
-    return this.data.todos.filter(todo => 
-      todo.createdAt.startsWith(dateStr)
-    );
+    return this.data.todos
+      .filter(todo => todo.createdAt.startsWith(dateStr))
+      .sort((a, b) => {
+        if (a.listId < b.listId) return -1;
+        if (a.listId > b.listId) return 1;
+        return a.seqno - b.seqno;
+      });
   }
 }

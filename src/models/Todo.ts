@@ -12,21 +12,20 @@
  * - Schemas can be converted to JSON Schema, which is useful for MCP clients
  */
 import { z } from 'zod';
-import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Todo Interface
  * 
  * This defines the structure of a Todo item in our application.
  * We've designed it with several important considerations:
- * - IDs use UUID for uniqueness across systems
+ * - seqno is a per-list sequence number for ordering
  * - Timestamps track creation and updates for data lifecycle management
  * - Description supports markdown for rich text formatting
  * - Completion status is tracked both as a boolean flag and with a timestamp
  */
 export interface Todo {
-  id: string;
   listId: string; // ID of the TodoList this todo belongs to
+  seqno: number; // Sequence number per list, starting from 1
   title: string;
   description: string; // Markdown format
   completed: boolean; // Computed from completedAt for backward compatibility
@@ -54,21 +53,24 @@ export const CreateTodoSchema = z.object({
   description: z.string().min(1, "Description is required"),
 });
 
-// Schema for updating a todo - requires ID, title and description are optional
+// Schema for updating a todo - requires listId and seqno. title and description are optional
 export const UpdateTodoSchema = z.object({
-  id: z.string().uuid("Invalid Todo ID"),
+  listId: z.string().uuid("Invalid TodoList ID"),
+  seqno: z.number().int().positive("seqno must be a positive integer"),
   title: z.string().min(1, "Title is required").optional(),
   description: z.string().min(1, "Description is required").optional(),
 });
 
-// Schema for completing a todo - requires only ID
+// Schema for completing a todo - requires listId and seqno
 export const CompleteTodoSchema = z.object({
-  id: z.string().uuid("Invalid Todo ID"),
+  listId: z.string().uuid("Invalid TodoList ID"),
+  seqno: z.number().int().positive("seqno must be a positive integer"),
 });
 
-// Schema for deleting a todo - requires only ID
+// Schema for deleting a todo - requires listId and seqno
 export const DeleteTodoSchema = z.object({
-  id: z.string().uuid("Invalid Todo ID"),
+  listId: z.string().uuid("Invalid TodoList ID"),
+  seqno: z.number().int().positive("seqno must be a positive integer"),
 });
 
 // Schema for listing todos by list ID
@@ -91,13 +93,14 @@ export const ListActiveTodosByListIdSchema = z.object({
  * - Makes it easy to change the implementation without affecting code that creates todos
  * 
  * @param data The validated input data
+ * @param seqno The sequence number for the new todo
  * @returns A fully formed Todo object with generated ID and timestamps
  */
-export function createTodo(data: z.infer<typeof CreateTodoSchema>): Todo {
+export function createTodo(data: z.infer<typeof CreateTodoSchema>, seqno: number): Todo {
   const now = new Date().toISOString();
   return {
-    id: uuidv4(),
     listId: data.listId,
+    seqno: seqno,
     title: data.title,
     description: data.description,
     completed: false,
@@ -105,4 +108,4 @@ export function createTodo(data: z.infer<typeof CreateTodoSchema>): Todo {
     createdAt: now,
     updatedAt: now,
   };
-} 
+}

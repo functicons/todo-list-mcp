@@ -33,7 +33,7 @@ export function formatTodo(todo: Todo): string {
   return `
 ## ${todo.title} ${todo.completed ? '✅' : '⏳'}
 
-ID: ${todo.id}
+SeqNo: ${todo.seqno}
 List ID: ${todo.listId}
 Created: ${new Date(todo.createdAt).toLocaleString()}
 Updated: ${new Date(todo.updatedAt).toLocaleString()}

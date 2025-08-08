@@ -11,7 +11,14 @@
  * - Makes it easier to change the storage implementation later
  * - Encapsulates complex operations into simple method calls
  */
-import { Todo, createTodo, CreateTodoSchema, UpdateTodoSchema } from '../models/Todo.js';
+import {
+  Todo,
+  createTodo,
+  CreateTodoSchema,
+  UpdateTodoSchema,
+  CompleteTodoSchema,
+  DeleteTodoSchema
+} from '../models/Todo.js';
 import { z } from 'zod';
 import { dataService } from './DataService.js';
 
@@ -27,33 +34,39 @@ class TodoService {
    * Create a new todo
    * 
    * This method:
-   * 1. Uses the factory function to create a new Todo object
-   * 2. Persists it to the data store
-   * 3. Returns the created Todo
+   * 1. Determines the next sequence number for the given list
+   * 2. Uses the factory function to create a new Todo object
+   * 3. Persists it to the data store
+   * 4. Returns the created Todo
    * 
    * @param data Validated input data (listId, title and description)
    * @returns Promise resolving to the newly created Todo
    */
   async createTodo(data: z.infer<typeof CreateTodoSchema>): Promise<Todo> {
-    // Use the factory function to create a Todo with proper defaults
-    const todo = createTodo(data);
-    
-    // Get the data store instance
     const store = dataService.getStore();
+    
+    // Get the latest seqno for this list
+    const todos = await store.getTodosByListId(data.listId);
+    const maxSeqno = todos.reduce((max, todo) => Math.max(max, todo.seqno), 0);
+    const newSeqno = maxSeqno + 1;
+
+    // Use the factory function to create a Todo with proper defaults
+    const todo = createTodo(data, newSeqno);
     
     // Create the todo in the data store
     return await store.createTodo(todo);
   }
 
   /**
-   * Get a todo by ID
+   * Get a todo by its composite key (listId, seqno)
    * 
-   * @param id The UUID of the todo to retrieve
+   * @param listId The UUID of the list
+   * @param seqno The sequence number of the todo
    * @returns Promise resolving to the Todo if found, undefined otherwise
    */
-  async getTodo(id: string): Promise<Todo | undefined> {
+  async getTodo(listId: string, seqno: number): Promise<Todo | undefined> {
     const store = dataService.getStore();
-    return await store.getTodo(id);
+    return await store.getTodo(listId, seqno);
   }
 
   /**
@@ -79,43 +92,36 @@ class TodoService {
   /**
    * Update a todo
    * 
-   * @param data The update data (id required, title/description optional)
+   * @param data The update data (listId, seqno required, title/description optional)
    * @returns Promise resolving to the updated Todo if found, undefined otherwise
    */
   async updateTodo(data: z.infer<typeof UpdateTodoSchema>): Promise<Todo | undefined> {
     const store = dataService.getStore();
-    const updates: Partial<Omit<Todo, 'id' | 'createdAt'>> = {};
+    const { listId, seqno, ...updates } = data;
     
-    if (data.title !== undefined) {
-      updates.title = data.title;
-    }
-    if (data.description !== undefined) {
-      updates.description = data.description;
-    }
-    
-    return await store.updateTodo(data.id, updates);
+    return await store.updateTodo(listId, seqno, updates);
   }
 
   /**
    * Mark a todo as completed
    * 
-   * @param id The UUID of the todo to complete
+   * @param data The completion data (listId, seqno)
    * @returns Promise resolving to the updated Todo if found, undefined otherwise
    */
-  async completeTodo(id: string): Promise<Todo | undefined> {
+  async completeTodo(data: z.infer<typeof CompleteTodoSchema>): Promise<Todo | undefined> {
     const store = dataService.getStore();
-    return await store.completeTodo(id);
+    return await store.completeTodo(data.listId, data.seqno);
   }
 
   /**
    * Delete a todo
    * 
-   * @param id The UUID of the todo to delete
+   * @param data The deletion data (listId, seqno)
    * @returns Promise resolving to true if deleted, false if not found
    */
-  async deleteTodo(id: string): Promise<boolean> {
+  async deleteTodo(data: z.infer<typeof DeleteTodoSchema>): Promise<boolean> {
     const store = dataService.getStore();
-    return await store.deleteTodo(id);
+    return await store.deleteTodo(data.listId, data.seqno);
   }
 
   /**
@@ -174,7 +180,7 @@ class TodoService {
       return "No active todos found.";
     }
     
-    const summary = activeTodos.map(todo => `- ${todo.title}`).join('\n');
+    const summary = activeTodos.map(todo => `- [${todo.seqno}] ${todo.title}`).join('\n');
     return `# Active Todos Summary\n\nThere are ${activeTodos.length} active todos:\n\n${summary}`;
   }
 
@@ -191,11 +197,12 @@ class TodoService {
       return "No active todos found for this list.";
     }
     
-    const summary = activeTodos.map(todo => `- ${todo.title}`).join('\n');
+    const summary = activeTodos.map(todo => `- [${todo.seqno}] ${todo.title}`).join('\n');
     return `# Active Todos Summary\n\nThere are ${activeTodos.length} active todos in this list:\n\n${summary}`;
   }
   
 }
 
 // Create a singleton instance for use throughout the application
-export const todoService = new TodoService(); 
+export const todoService = new TodoService();
+ 

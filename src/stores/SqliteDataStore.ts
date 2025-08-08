@@ -92,13 +92,14 @@ export class SqliteDataStore implements DataStore {
     // Create todos table if it doesn't exist
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS todos (
-        id TEXT PRIMARY KEY,
         listId TEXT NOT NULL,
+        seqno INTEGER NOT NULL,
         title TEXT NOT NULL,
         description TEXT NOT NULL,
         completedAt TEXT NULL,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
+        PRIMARY KEY (listId, seqno),
         FOREIGN KEY (listId) REFERENCES todo_lists (id) ON DELETE CASCADE
       )
     `);
@@ -118,14 +119,15 @@ export class SqliteDataStore implements DataStore {
       const tableInfo = this.db.prepare("PRAGMA table_info(todos)").all() as any[];
       
       if (tableInfo.length > 0) {
-        const hasListId = tableInfo.some((column: any) => column.name === 'listId');
+        const hasSeqno = tableInfo.some((column: any) => column.name === 'seqno');
+        const hasId = tableInfo.some((column: any) => column.name === 'id');
         
-        if (!hasListId) {
+        if (hasId || !hasSeqno) {
           const currentColumns = tableInfo.map((col: any) => col.name).join(', ');
           throw new IncompatibleSchemaException(
-            'Incompatible database schema detected. The existing todos table does not have the required "listId" column. ' +
-            'Please use a new database file or manually migrate your data to the new schema.',
-            'todos table with listId column',
+            'Incompatible database schema detected. The existing todos table has a legacy schema. ' +
+            'Please use a new database file or manually migrate your data to the new schema with listId and seqno.',
+            'todos table with listId and seqno columns',
             `todos table with columns: ${currentColumns}`
           );
         }
@@ -156,8 +158,8 @@ export class SqliteDataStore implements DataStore {
    */
   private rowToTodo(row: any): Todo {
     return {
-      id: row.id,
       listId: row.listId,
+      seqno: row.seqno,
       title: row.title,
       description: row.description,
       completedAt: row.completedAt,
@@ -238,16 +240,16 @@ export class SqliteDataStore implements DataStore {
   async createTodo(todo: Todo): Promise<Todo> {
     try {
       const stmt = this.db.prepare(`
-        INSERT INTO todos (id, listId, title, description, completedAt, createdAt, updatedAt)
+        INSERT INTO todos (listId, seqno, title, description, completedAt, createdAt, updatedAt)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
       
-      stmt.run(todo.id, todo.listId, todo.title, todo.description, todo.completedAt, todo.createdAt, todo.updatedAt);
+      stmt.run(todo.listId, todo.seqno, todo.title, todo.description, todo.completedAt, todo.createdAt, todo.updatedAt);
       return todo;
     } catch (error: any) {
       if (error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
         throw new ConstraintViolationException(
-          `Todo with ID '${todo.id}' already exists`,
+          `Todo with listId '${todo.listId}' and seqno '${todo.seqno}' already exists`,
           'UNIQUE',
           'PRIMARY KEY'
         );
@@ -267,45 +269,45 @@ export class SqliteDataStore implements DataStore {
     }
   }
 
-  async getTodo(id: string): Promise<Todo | undefined> {
-    const stmt = this.db.prepare('SELECT * FROM todos WHERE id = ?');
-    const row = stmt.get(id) as any;
+  async getTodo(listId: string, seqno: number): Promise<Todo | undefined> {
+    const stmt = this.db.prepare('SELECT * FROM todos WHERE listId = ? AND seqno = ?');
+    const row = stmt.get(listId, seqno) as any;
     return row ? this.rowToTodo(row) : undefined;
   }
 
   async getAllTodos(): Promise<Todo[]> {
-    const stmt = this.db.prepare('SELECT * FROM todos');
+    const stmt = this.db.prepare('SELECT * FROM todos ORDER BY listId, seqno ASC');
     const rows = stmt.all() as any[];
     return rows.map(row => this.rowToTodo(row));
   }
 
   async getTodosByListId(listId: string): Promise<Todo[]> {
-    const stmt = this.db.prepare('SELECT * FROM todos WHERE listId = ?');
+    const stmt = this.db.prepare('SELECT * FROM todos WHERE listId = ? ORDER BY seqno ASC');
     const rows = stmt.all(listId) as any[];
     return rows.map(row => this.rowToTodo(row));
   }
 
   async getActiveTodos(): Promise<Todo[]> {
-    const stmt = this.db.prepare('SELECT * FROM todos WHERE completedAt IS NULL');
+    const stmt = this.db.prepare('SELECT * FROM todos WHERE completedAt IS NULL ORDER BY listId, seqno ASC');
     const rows = stmt.all() as any[];
     return rows.map(row => this.rowToTodo(row));
   }
 
   async getActiveTodosByListId(listId: string): Promise<Todo[]> {
-    const stmt = this.db.prepare('SELECT * FROM todos WHERE listId = ? AND completedAt IS NULL');
+    const stmt = this.db.prepare('SELECT * FROM todos WHERE listId = ? AND completedAt IS NULL ORDER BY seqno ASC');
     const rows = stmt.all(listId) as any[];
     return rows.map(row => this.rowToTodo(row));
   }
 
-  async updateTodo(id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>): Promise<Todo | undefined> {
-    const existing = await this.getTodo(id);
+  async updateTodo(listId: string, seqno: number, updates: Partial<Omit<Todo, 'listId' | 'seqno' | 'createdAt'>>): Promise<Todo | undefined> {
+    const existing = await this.getTodo(listId, seqno);
     if (!existing) return undefined;
 
     const updatedAt = new Date().toISOString();
     const stmt = this.db.prepare(`
       UPDATE todos
       SET title = ?, description = ?, completedAt = ?, updatedAt = ?
-      WHERE id = ?
+      WHERE listId = ? AND seqno = ?
     `);
     
     stmt.run(
@@ -313,20 +315,21 @@ export class SqliteDataStore implements DataStore {
       updates.description || existing.description,
       updates.completedAt !== undefined ? updates.completedAt : existing.completedAt,
       updatedAt,
-      id
+      listId,
+      seqno
     );
     
-    return await this.getTodo(id);
+    return await this.getTodo(listId, seqno);
   }
 
-  async completeTodo(id: string): Promise<Todo | undefined> {
+  async completeTodo(listId: string, seqno: number): Promise<Todo | undefined> {
     const now = new Date().toISOString();
-    return this.updateTodo(id, { completedAt: now });
+    return this.updateTodo(listId, seqno, { completedAt: now });
   }
 
-  async deleteTodo(id: string): Promise<boolean> {
-    const stmt = this.db.prepare('DELETE FROM todos WHERE id = ?');
-    const result = stmt.run(id);
+  async deleteTodo(listId: string, seqno: number): Promise<boolean> {
+    const stmt = this.db.prepare('DELETE FROM todos WHERE listId = ? AND seqno = ?');
+    const result = stmt.run(listId, seqno);
     return result.changes > 0;
   }
 
@@ -334,14 +337,14 @@ export class SqliteDataStore implements DataStore {
 
   async searchTodosByTitle(title: string): Promise<Todo[]> {
     const searchTerm = `%${title}%`;
-    const stmt = this.db.prepare('SELECT * FROM todos WHERE title LIKE ? COLLATE NOCASE');
+    const stmt = this.db.prepare('SELECT * FROM todos WHERE title LIKE ? COLLATE NOCASE ORDER BY listId, seqno ASC');
     const rows = stmt.all(searchTerm) as any[];
     return rows.map(row => this.rowToTodo(row));
   }
 
   async searchTodosByDate(dateStr: string): Promise<Todo[]> {
     const datePattern = `${dateStr}%`;
-    const stmt = this.db.prepare('SELECT * FROM todos WHERE createdAt LIKE ?');
+    const stmt = this.db.prepare('SELECT * FROM todos WHERE createdAt LIKE ? ORDER BY listId, seqno ASC');
     const rows = stmt.all(datePattern) as any[];
     return rows.map(row => this.rowToTodo(row));
   }

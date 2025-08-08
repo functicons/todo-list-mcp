@@ -132,16 +132,15 @@ async function main() {
     console.log(createContent[0].text);
 
     /**
-     * Extract the todo ID from the response
+     * Extract the todo seqno from the response
      * 
-     * We use a simple regex to parse the ID from the formatted response.
-     * In a real application, you might want a more structured response format.
+     * We use a simple regex to parse the seqno from the formatted response.
      */
-    const idMatch = createContent[0].text.match(/ID: ([0-9a-f-]+)/);
-    const todoId = idMatch ? idMatch[1] : null;
+    const seqnoMatch = createContent[0].text.match(/seqno: (\d+)/);
+    const todoSeqno = seqnoMatch ? parseInt(seqnoMatch[1], 10) : null;
 
-    // Only proceed if we successfully created a todo and extracted its ID
-    if (todoId) {
+    // Only proceed if we successfully created a todo and extracted its seqno
+    if (todoSeqno) {
 
       /**
        * List todos by list ID
@@ -176,14 +175,15 @@ async function main() {
       /**
        * Update the todo
        * 
-       * This demonstrates the update-todo tool, which takes an ID
+       * This demonstrates the update-todo tool, which takes listId and seqno
        * and optional title/description fields to update.
        */
       console.log("\nUpdating the test todo...");
       const updateTodoResult = await client.callTool({
         name: "update-todo",
         arguments: {
-          id: todoId,
+          listId: listId,
+          seqno: todoSeqno,
           description: "# Updated MCP Learning Plan\n\n- Learn MCP core concepts\n- Build a server with tools\n- Connect to Claude\n- Create amazing AI experiences"
         }
       });
@@ -193,14 +193,15 @@ async function main() {
       /**
        * Mark todo as completed
        * 
-       * This demonstrates the complete-todo tool, which takes an ID
+       * This demonstrates the complete-todo tool, which takes listId and seqno
        * and marks the corresponding todo as completed.
        */
       console.log("\nCompleting the test todo...");
       const completeTodoResult = await client.callTool({
         name: "complete-todo",
         arguments: {
-          id: todoId
+          listId: listId,
+          seqno: todoSeqno
         }
       });
       const completeContent = completeTodoResult.content as ContentText[];
@@ -230,7 +231,8 @@ async function main() {
       const deleteTodoResult = await client.callTool({
         name: "delete-todo",
         arguments: {
-          id: todoId
+          listId: listId,
+          seqno: todoSeqno
         }
       });
       const deleteContent = deleteTodoResult.content as ContentText[];
@@ -247,4 +249,5 @@ async function main() {
 }
 
 // Start the test client
-main(); 
+main();
+ 

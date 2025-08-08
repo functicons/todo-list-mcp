@@ -161,15 +161,16 @@ server.tool(
  */
 server.tool(
   "get-todo",
-  "Get a specific todo by ID",
+  "Get a specific todo by its list ID and sequence number",
   {
-    id: z.string().uuid("Invalid Todo ID"),
+    listId: z.string().uuid("Invalid TodoList ID"),
+    seqno: z.number().int().positive("Sequence number must be a positive integer"),
   },
-  async ({ id }) => {
+  async ({ listId, seqno }) => {
     const result = await safeExecute(async () => {
-      const todo = await todoService.getTodo(id);
+      const todo = await todoService.getTodo(listId, seqno);
       if (!todo) {
-        throw new Error(`Todo with ID ${id} not found`);
+        throw new Error(`Todo with seqno ${seqno} in list ${listId} not found`);
       }
       return formatTodo(todo);
     }, "Failed to get todo");
@@ -195,13 +196,14 @@ server.tool(
   "update-todo",
   "Update a todo title or description",
   {
-    id: z.string().uuid("Invalid Todo ID"),
+    listId: z.string().uuid("Invalid TodoList ID"),
+    seqno: z.number().int().positive("Sequence number must be a positive integer"),
     title: z.string().min(1, "Title is required").optional(),
     description: z.string().min(1, "Description is required").optional(),
   },
-  async ({ id, title, description }) => {
+  async ({ listId, seqno, title, description }) => {
     const result = await safeExecute(async () => {
-      const validatedData = UpdateTodoSchema.parse({ id, title, description });
+      const validatedData = UpdateTodoSchema.parse({ listId, seqno, title, description });
       
       // Ensure at least one field is being updated
       if (!title && !description) {
@@ -210,7 +212,7 @@ server.tool(
 
       const updatedTodo = await todoService.updateTodo(validatedData);
       if (!updatedTodo) {
-        throw new Error(`Todo with ID ${id} not found`);
+        throw new Error(`Todo with seqno ${seqno} in list ${listId} not found`);
       }
 
       return formatTodo(updatedTodo);
@@ -242,15 +244,16 @@ server.tool(
   "complete-todo",
   "Mark a todo as completed",
   {
-    id: z.string().uuid("Invalid Todo ID"),
+    listId: z.string().uuid("Invalid TodoList ID"),
+    seqno: z.number().int().positive("Sequence number must be a positive integer"),
   },
-  async ({ id }) => {
+  async ({ listId, seqno }) => {
     const result = await safeExecute(async () => {
-      const validatedData = CompleteTodoSchema.parse({ id });
-      const completedTodo = await todoService.completeTodo(validatedData.id);
+      const validatedData = CompleteTodoSchema.parse({ listId, seqno });
+      const completedTodo = await todoService.completeTodo(validatedData);
       
       if (!completedTodo) {
-        throw new Error(`Todo with ID ${id} not found`);
+        throw new Error(`Todo with seqno ${seqno} in list ${listId} not found`);
       }
 
       return formatTodo(completedTodo);
@@ -277,21 +280,22 @@ server.tool(
   "delete-todo",
   "Delete a todo",
   {
-    id: z.string().uuid("Invalid Todo ID"),
+    listId: z.string().uuid("Invalid TodoList ID"),
+    seqno: z.number().int().positive("Sequence number must be a positive integer"),
   },
-  async ({ id }) => {
+  async ({ listId, seqno }) => {
     const result = await safeExecute(async () => {
-      const validatedData = DeleteTodoSchema.parse({ id });
-      const todo = await todoService.getTodo(validatedData.id);
+      const validatedData = DeleteTodoSchema.parse({ listId, seqno });
+      const todo = await todoService.getTodo(validatedData.listId, validatedData.seqno);
       
       if (!todo) {
-        throw new Error(`Todo with ID ${id} not found`);
+        throw new Error(`Todo with seqno ${seqno} in list ${listId} not found`);
       }
       
-      const success = await todoService.deleteTodo(validatedData.id);
+      const success = await todoService.deleteTodo(validatedData);
       
       if (!success) {
-        throw new Error(`Failed to delete todo with ID ${id}`);
+        throw new Error(`Failed to delete todo with seqno ${seqno} in list ${listId}`);
       }
       
       return todo.title;

@@ -28,14 +28,14 @@ export interface DataStore {
 
   // Todo operations
   createTodo(todo: Todo): Promise<Todo>;
-  getTodo(id: string): Promise<Todo | undefined>;
+  getTodo(listId: string, seqno: number): Promise<Todo | undefined>;
   getAllTodos(): Promise<Todo[]>;
   getTodosByListId(listId: string): Promise<Todo[]>;
   getActiveTodos(): Promise<Todo[]>;
   getActiveTodosByListId(listId: string): Promise<Todo[]>;
-  updateTodo(id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>): Promise<Todo | undefined>;
-  completeTodo(id: string): Promise<Todo | undefined>;
-  deleteTodo(id: string): Promise<boolean>;
+  updateTodo(listId: string, seqno: number, updates: Partial<Omit<Todo, 'listId' | 'seqno' | 'createdAt'>>): Promise<Todo | undefined>;
+  completeTodo(listId: string, seqno: number): Promise<Todo | undefined>;
+  deleteTodo(listId: string, seqno: number): Promise<boolean>;
   
   // Search operations
   searchTodosByTitle(title: string): Promise<Todo[]>;

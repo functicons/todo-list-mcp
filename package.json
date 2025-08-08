@@ -16,7 +16,7 @@
     "dev": "npm run build && npm start",
     "test-client": "npm run build && node dist/scripts/test_client.js",
     "test:integration": "npm run build && node dist/tests/run_tests.js",
-    "test:all": "npm run test:integration && npm run test-client",
+    "test": "npm run test:integration && npm run test-client",
     "inspect": "./scripts/inspect-mcp-server.sh",
     "dump-sqlite": "./scripts/dump-sqlite.sh"
   },
