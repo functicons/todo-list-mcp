@@ -149,6 +149,89 @@ The server provides these tools for AI clients:
 - Date-based filtering
 - Completion status filtering
 
+## API Specification
+
+### Todo Operations
+
+#### `create-todo`
+**Description**: Create a new todo item in a specific list  
+**Parameters**:
+- `listId` (string, required): UUID of the todo list
+- `title` (string, required): Todo title (minimum 1 character)
+- `description` (string, required): Todo description (minimum 1 character)
+
+#### `get-todo`
+**Description**: Retrieve a specific todo by ID  
+**Parameters**:
+- `id` (string, required): UUID of the todo item
+
+#### `update-todo`
+**Description**: Update a todo's title or description  
+**Parameters**:
+- `id` (string, required): UUID of the todo item
+- `title` (string, optional): New title
+- `description` (string, optional): New description
+
+#### `complete-todo`
+**Description**: Mark a todo as completed  
+**Parameters**:
+- `id` (string, required): UUID of the todo item
+
+#### `delete-todo`
+**Description**: Delete a todo permanently  
+**Parameters**:
+- `id` (string, required): UUID of the todo item
+
+#### `list-todos`
+**Description**: List all todos across all lists  
+**Parameters**: None
+
+#### `list-active-todos`
+**Description**: List all non-completed todos  
+**Parameters**: None
+
+#### `summarize-active-todos`
+**Description**: Generate a summary of all active todos  
+**Parameters**: None
+
+### Search Operations
+
+#### `search-todos-by-title`
+**Description**: Search todos by title (case-insensitive partial match)  
+**Parameters**:
+- `title` (string, required): Search term to match in todo titles
+
+#### `search-todos-by-date`
+**Description**: Search todos by creation date  
+**Parameters**:
+- `date` (string, required): Date in YYYY-MM-DD format
+
+### Todo List Operations
+
+#### `create-todo-list`
+**Description**: Create a new todo list  
+**Parameters**:
+- `name` (string, required): Name of the todo list (minimum 1 character)
+- `description` (string, required): Description of the todo list (minimum 1 character)
+
+#### `delete-todo-list`
+**Description**: Delete a todo list and all its todos  
+**Parameters**:
+- `id` (string, required): UUID of the todo list
+
+#### `list-todos-by-list`
+**Description**: List all todos in a specific todo list  
+**Parameters**:
+- `listId` (string, required): UUID of the todo list
+
+### Response Format
+
+All tools return structured responses with:
+- **Success**: Formatted text with todo/list information
+- **Error**: Clear error message explaining what went wrong
+
+All UUIDs are validated, and required fields are enforced. The server uses TypeScript with Zod schemas for runtime validation.
+
 ## Data Storage
 
 Your todo data is stored locally:
