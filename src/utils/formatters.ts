@@ -30,10 +30,9 @@ import { TodoList } from "../models/TodoList.js";
  * @returns A markdown-formatted string representation
  */
 export function formatTodo(todo: Todo): string {
-  const statusIcon = todo.status === 'completed' ? '✅' : (todo.status === 'pending' ? '⏳' : '❌');
-  return `# TODO List: ${todo.listId}
-
-${todo.seqno}. ${todo.title} (${statusIcon})`;
+  const checkbox = todo.status === 'done' ? '[x]' : (todo.status === 'canceled' ? '[-]' : '[ ]');
+  return `TODO List (${todo.listId}):
+- ${checkbox} ${todo.seqno}. ${todo.title}`;
 }
 
 /**
@@ -52,11 +51,11 @@ export function formatTodoList(todos: Todo[]): string {
 
   const listId = todos[0].listId;
   const todoItems = todos.map(todo => {
-    const statusIcon = todo.status === 'completed' ? '✅' : (todo.status === 'pending' ? '⏳' : '❌');
-    return `${todo.seqno}. ${todo.title} (${statusIcon})`;
+    const checkbox = todo.status === 'done' ? '[x]' : (todo.status === 'canceled' ? '[-]' : '[ ]');
+    return `- ${checkbox} ${todo.seqno}. ${todo.title}`;
   }).join('\n');
   
-  return `# TODO List: ${listId} (${todos.length} items)\n\n${todoItems}`;
+  return `TODO List (${listId}):\n${todoItems}`;
 }
 
 /**

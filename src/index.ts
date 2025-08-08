@@ -137,7 +137,7 @@ server.tool(
   {
     listId: z.string().uuid("Invalid TodoList ID"),
     seqno: z.number().int().positive("Sequence number must be a positive integer").optional(),
-    status: z.enum(['pending', 'completed', 'canceled']).optional(),
+    status: z.enum(['pending', 'done', 'canceled']).optional(),
   },
   async ({ listId, seqno, status }) => {
     const result = await safeExecute(async () => {
@@ -192,7 +192,7 @@ server.tool(
   {
     listId: z.string().uuid("Invalid TodoList ID"),
     seqno: z.number().int().positive("Sequence number must be a positive integer"),
-    status: z.enum(['pending', 'completed', 'canceled']),
+    status: z.enum(['pending', 'done', 'canceled']),
   },
   async ({ listId, seqno, status }) => {
     const result = await safeExecute(async () => {

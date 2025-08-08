@@ -18,7 +18,7 @@ import { z } from 'zod';
  * 
  * This defines the possible statuses for a Todo item.
  */
-export const TodoStatus = z.enum(['pending', 'completed', 'canceled']);
+export const TodoStatus = z.enum(['pending', 'done', 'canceled']);
 export type TodoStatus = z.infer<typeof TodoStatus>;
 
 /**

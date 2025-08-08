@@ -275,10 +275,10 @@ async function runAllTests() {
         
         assert.equal(created.status, 'pending', 'New todo should have pending status');
         
-        const updated = await store.updateTodo(created.listId, created.seqno, { status: 'completed' });
+        const updated = await store.updateTodo(created.listId, created.seqno, { status: 'done' });
         assert.ok(updated);
         
-        assert.equal(updated.status, 'completed', 'Todo status should be updated to completed');
+        assert.equal(updated.status, 'done', 'Todo status should be updated to done');
         
       } finally {
         await store.close();
