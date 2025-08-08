@@ -12,9 +12,18 @@ A Model Context Protocol (MCP) server that provides todo list management with mu
 
 ## Installation
 
+### Option 1: Using npx (Recommended)
+
+```bash
+# Run directly from GitHub repository
+npx github:functicons/todo-list-mcp
+```
+
+### Option 2: Local Installation
+
 ```bash
 # Clone the repository
-git clone https://github.com/RegiByte/todo-list-mcp.git
+git clone https://github.com/functicons/todo-list-mcp.git
 cd todo-list-mcp
 
 # Build the project (automatically installs dependencies if needed)
@@ -23,25 +32,24 @@ npm run build
 
 ## Configuration
 
-### Claude Code
+### Claude Code & Gemini CLI
 
-Add this to your `~/.claude/settings.json`:
+Add this configuration to your settings file:
+- **Claude Code**: `~/.claude/settings.json`
+- **Gemini CLI**: `~/.gemini/settings.json`
 
 ```json
 {
   "mcpServers": {
     "todo-list": {
-      "command": "node",
-      "args": ["/absolute/path/to/todo-list-mcp/dist/src/index.js"]
+      "command": "npx",
+      "args": ["github:functicons/todo-list-mcp"]
     }
   }
 }
 ```
 
-### Gemini CLI
-
-Add this to your `~/.gemini/settings.json`:
-
+**Alternative (local installation):**
 ```json
 {
   "mcpServers": {
@@ -55,14 +63,36 @@ Add this to your `~/.gemini/settings.json`:
 
 ### Storage Options
 
-The server automatically uses JSON file storage by default. To use SQLite instead:
+The server supports two storage backends:
+
+**JSON File Storage (Default):**
+- **Location**: `~/.todo-list-mcp/todos.json`
+- **Format**: Human-readable JSON format
 
 ```json
 {
   "mcpServers": {
     "todo-list": {
-      "command": "node",
-      "args": ["/absolute/path/to/todo-list-mcp/dist/src/index.js"],
+      "command": "npx",
+      "args": ["github:functicons/todo-list-mcp"],
+      "env": {
+        "TODO_DATA_STORE": "json"
+      }
+    }
+  }
+}
+```
+
+**SQLite Database Storage:**
+- **Location**: `~/.todo-list-mcp/todos.sqlite`
+- **Format**: Binary SQLite database
+
+```json
+{
+  "mcpServers": {
+    "todo-list": {
+      "command": "npx",
+      "args": ["github:functicons/todo-list-mcp"],
       "env": {
         "TODO_DATA_STORE": "sqlite"
       }
@@ -70,6 +100,8 @@ The server automatically uses JSON file storage by default. To use SQLite instea
   }
 }
 ```
+
+*Note: JSON is the default, so you can omit the `env` section entirely for JSON storage.*
 
 ## Usage Examples
 
