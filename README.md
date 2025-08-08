@@ -274,7 +274,27 @@ npm run test:integration
 
 # Test the client
 npm run test-client
+
+# Debug SQLite database contents
+npm run dump-sqlite
 ```
+
+### Debugging
+
+**SQLite Database Inspection:**
+```bash
+# Dump SQLite database contents (requires sqlite3 command)
+npm run dump-sqlite
+
+# Or specify custom database path
+./scripts/dump-sqlite.sh /path/to/custom/database.sqlite
+```
+
+The dump script shows:
+- Database schema and table structure
+- All todo lists and todos with their relationships  
+- Statistics (active/completed counts, todos per list)
+- Recent activity and advanced queries
 
 ## License
 

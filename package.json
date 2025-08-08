@@ -17,7 +17,8 @@
     "test-client": "npm run build && node dist/scripts/test_client.js",
     "test:integration": "npm run build && node dist/tests/run_tests.js",
     "test:all": "npm run test:integration && npm run test-client",
-    "inspector": "npx @modelcontextprotocol/inspector node dist/src/index.js"
+    "inspector": "npx @modelcontextprotocol/inspector node dist/src/index.js",
+    "dump-sqlite": "./scripts/dump-sqlite.sh"
   },
   "keywords": [
     "mcp",
