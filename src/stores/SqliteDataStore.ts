@@ -82,7 +82,6 @@ export class SqliteDataStore implements DataStore {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS todo_lists (
         id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
         description TEXT NOT NULL,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
@@ -146,7 +145,6 @@ export class SqliteDataStore implements DataStore {
   private rowToTodoList(row: any): TodoList {
     return {
       id: row.id,
-      name: row.name,
       description: row.description,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt
@@ -173,11 +171,11 @@ export class SqliteDataStore implements DataStore {
   async createTodoList(todoList: TodoList): Promise<TodoList> {
     try {
       const stmt = this.db.prepare(`
-        INSERT INTO todo_lists (id, name, description, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO todo_lists (id, description, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?)
       `);
       
-      stmt.run(todoList.id, todoList.name, todoList.description, todoList.createdAt, todoList.updatedAt);
+      stmt.run(todoList.id, todoList.description, todoList.createdAt, todoList.updatedAt);
       return todoList;
     } catch (error: any) {
       if (error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
@@ -214,12 +212,11 @@ export class SqliteDataStore implements DataStore {
     const updatedAt = new Date().toISOString();
     const stmt = this.db.prepare(`
       UPDATE todo_lists
-      SET name = ?, description = ?, updatedAt = ?
+      SET description = ?, updatedAt = ?
       WHERE id = ?
     `);
     
     stmt.run(
-      updates.name || existing.name,
       updates.description || existing.description,
       updatedAt,
       id

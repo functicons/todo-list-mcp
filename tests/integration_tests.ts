@@ -34,7 +34,6 @@ async function runAllTests() {
       try {
         // Create identical data in both stores
         const todoList = TestUtils.createSampleTodoList({
-          name: 'Compatibility Test',
           description: 'Testing cross-store compatibility'
         });
         
@@ -43,7 +42,6 @@ async function runAllTests() {
         
         // Both should have same structure (except timestamps might differ slightly)
         assert.equal(jsonCreated.id, sqliteCreated.id);
-        assert.equal(jsonCreated.name, sqliteCreated.name);
         assert.equal(jsonCreated.description, sqliteCreated.description);
         
         // Test todo operations
@@ -75,7 +73,7 @@ async function runAllTests() {
         assert.equal(result, undefined);
         
         // Try to update non-existent todo list
-        const updated = await store.updateTodoList('non-existent-id', { name: 'New Name' });
+        const updated = await store.updateTodoList('non-existent-id', { description: 'New description' });
         assert.equal(updated, undefined);
         
         // Try to delete non-existent todo list
@@ -145,7 +143,7 @@ async function runAllTests() {
     test('JsonFileDataStore: Throws ConstraintViolationException for duplicate TodoList ID', async () => {
       const store = await TestUtils.createJsonStore();
       try {
-        const todoList = TestUtils.createSampleTodoList({ name: 'Test List' });
+        const todoList = TestUtils.createSampleTodoList({ description: 'Test List' });
         await store.createTodoList(todoList);
         
         await assert.rejects(
@@ -230,7 +228,7 @@ async function runAllTests() {
     test('Custom exceptions have correct properties', async () => {
       const store = await TestUtils.createSqliteStore();
       try {
-        const todoList = TestUtils.createSampleTodoList({ name: 'Test List' });
+        const todoList = TestUtils.createSampleTodoList({ description: 'Test List' });
         await store.createTodoList(todoList);
         
         try {

@@ -14,7 +14,6 @@ import { v4 as uuidv4 } from 'uuid';
  */
 export interface TodoList {
   id: string;
-  name: string;
   description: string;
   createdAt: string;
   updatedAt: string;
@@ -26,14 +25,12 @@ export interface TodoList {
 
 // Schema for creating a new todo list
 export const CreateTodoListSchema = z.object({
-  name: z.string().min(1, "Name is required"),
   description: z.string().min(1, "Description is required"),
 });
 
 // Schema for updating a todo list
 export const UpdateTodoListSchema = z.object({
   id: z.string().uuid("Invalid TodoList ID"),
-  name: z.string().min(1, "Name is required").optional(),
   description: z.string().min(1, "Description is required").optional(),
 });
 
@@ -54,7 +51,6 @@ export function createTodoList(data: z.infer<typeof CreateTodoListSchema>): Todo
   const now = new Date().toISOString();
   return {
     id: uuidv4(),
-    name: data.name,
     description: data.description,
     createdAt: now,
     updatedAt: now,

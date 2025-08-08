@@ -108,7 +108,7 @@ The server supports two storage backends:
 Once configured with your AI client, try these commands:
 
 ### Getting Started
-- "Create a new todo list called 'Work Projects'"
+- "Create a new todo list for 'Work Projects'"
 - "Add a todo to my work list: prepare quarterly presentation"
 - "List all my todo lists"
 
@@ -192,7 +192,6 @@ The server provides these tools for AI clients:
 #### `create-todo-list`
 **Description**: Create a new todo list  
 **Parameters**:
-- `name` (string, required): Name of the todo list (minimum 1 character)
 - `description` (string, required): Description of the todo list (minimum 1 character)
 
 #### `delete-todo-list`

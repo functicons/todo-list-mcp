@@ -332,12 +332,11 @@ server.tool(
   "create-todo-list",
   "Create a new todo list",
   {
-    name: z.string().min(1, "Name is required"),
     description: z.string().min(1, "Description is required"),
   },
-  async ({ name, description }) => {
+  async ({ description }) => {
     const result = await safeExecute(async () => {
-      const validatedData = CreateTodoListSchema.parse({ name, description });
+      const validatedData = CreateTodoListSchema.parse({ description });
       const newTodoList = await todoListService.createTodoList(validatedData);
       return formatTodoListInfo(newTodoList);
     }, "Failed to create todo list");
@@ -376,7 +375,7 @@ server.tool(
         throw new Error(`Failed to delete todo list with ID ${id}`);
       }
       
-      return todoList.name;
+      return todoList.id;
     }, "Failed to delete todo list");
 
     if (result instanceof Error) {

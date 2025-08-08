@@ -68,7 +68,6 @@ export class TestUtils {
    */
   static createSampleTodoList(overrides: Partial<Parameters<typeof createTodoList>[0]> = {}) {
     return createTodoList({
-      name: 'Test List',
       description: 'A test todo list',
       ...overrides
     });
@@ -99,9 +98,6 @@ export class TodoAssertions {
     assert.equal(typeof actual.id, 'string', 'TodoList should have string id');
     assert.ok(actual.id.length > 0, 'TodoList id should not be empty');
     
-    if (expected.name) {
-      assert.equal(actual.name, expected.name, 'TodoList name should match');
-    }
     if (expected.description) {
       assert.equal(actual.description, expected.description, 'TodoList description should match');
     }
@@ -163,10 +159,10 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
     test(`${storeName}: Create TodoList`, async () => {
       const store = await createStore();
       try {
-        const todoList = TestUtils.createSampleTodoList({ name: 'Integration Test List' });
+        const todoList = TestUtils.createSampleTodoList({ description: 'Integration Test List' });
         const created = await store.createTodoList(todoList);
         
-        TodoAssertions.assertTodoList(created, { name: 'Integration Test List' });
+        TodoAssertions.assertTodoList(created, { description: 'Integration Test List' });
         assert.equal(created.id, todoList.id, 'Created TodoList should have same id');
       } finally {
         await store.close();
@@ -176,11 +172,11 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
     test(`${storeName}: Get TodoList`, async () => {
       const store = await createStore();
       try {
-        const todoList = TestUtils.createSampleTodoList({ name: 'Get Test List' });
+        const todoList = TestUtils.createSampleTodoList({ description: 'Get Test List' });
         await store.createTodoList(todoList);
         
         const retrieved = await store.getTodoList(todoList.id);
-        TodoAssertions.assertTodoList(retrieved!, { name: 'Get Test List' });
+        TodoAssertions.assertTodoList(retrieved!, { description: 'Get Test List' });
         assert.equal(retrieved!.id, todoList.id);
       } finally {
         await store.close();
@@ -200,15 +196,14 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
     test(`${storeName}: Update TodoList`, async () => {
       const store = await createStore();
       try {
-        const todoList = TestUtils.createSampleTodoList({ name: 'Original Name' });
+        const todoList = TestUtils.createSampleTodoList({ description: 'Original description' });
         await store.createTodoList(todoList);
         
         const updated = await store.updateTodoList(todoList.id, {
-          name: 'Updated Name',
           description: 'Updated description'
         });
         
-        TodoAssertions.assertTodoList(updated!, { name: 'Updated Name', description: 'Updated description' });
+        TodoAssertions.assertTodoList(updated!, { description: 'Updated description' });
         assert.notEqual(updated!.updatedAt, todoList.updatedAt, 'UpdatedAt should change');
       } finally {
         await store.close();
@@ -290,8 +285,8 @@ export async function runDataStoreTests(storeName: string, createStore: () => Pr
     test(`${storeName}: Get Todos by List ID`, async () => {
       const store = await createStore();
       try {
-        const todoList1 = TestUtils.createSampleTodoList({ name: 'List 1' });
-        const todoList2 = TestUtils.createSampleTodoList({ name: 'List 2' });
+        const todoList1 = TestUtils.createSampleTodoList({ description: 'List 1' });
+        const todoList2 = TestUtils.createSampleTodoList({ description: 'List 2' });
         await store.createTodoList(todoList1);
         await store.createTodoList(todoList2);
         

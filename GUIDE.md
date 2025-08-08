@@ -141,11 +141,10 @@ return createErrorResponse(`Error: ${errorMessage}`);
 Use the provided test client to see the server in action:
 
 ```bash
-npm run build
-node dist/client.js
+npm run test
 ```
 
-This will run through a complete lifecycle of creating, updating, completing, and deleting a todo.
+This will run through a complete lifecycle of creating, and deleting a todo.
 
 ### Integration with Claude for Desktop
 

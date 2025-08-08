@@ -116,8 +116,6 @@ export function createErrorResponse(message: string) {
  */
 export function formatTodoListInfo(todoList: TodoList): string {
   return `
-## ${todoList.name}
-
 ID: ${todoList.id}
 Created: ${new Date(todoList.createdAt).toLocaleString()}
 Updated: ${new Date(todoList.updatedAt).toLocaleString()}

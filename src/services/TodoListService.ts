@@ -59,9 +59,6 @@ class TodoListService {
     const store = dataService.getStore();
     const updates: Partial<Omit<TodoList, 'id' | 'createdAt'>> = {};
     
-    if (data.name !== undefined) {
-      updates.name = data.name;
-    }
     if (data.description !== undefined) {
       updates.description = data.description;
     }

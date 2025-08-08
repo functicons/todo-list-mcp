@@ -95,7 +95,6 @@ async function main() {
     const createListResult = await client.callTool({
       name: "create-todo-list",
       arguments: {
-        name: "MCP Learning",
         description: "A list for tracking MCP-related learning tasks"
       }
     });
@@ -171,41 +170,6 @@ async function main() {
       });
       const listContent = listTodosResult.content as ContentText[];
       console.log(listContent[0].text);
-
-      /**
-       * Update the todo
-       * 
-       * This demonstrates the update-todo tool, which takes listId and seqno
-       * and optional title/description fields to update.
-       */
-      console.log("\nUpdating the test todo...");
-      const updateTodoResult = await client.callTool({
-        name: "update-todo",
-        arguments: {
-          listId: listId,
-          seqno: todoSeqno,
-          description: "# Updated MCP Learning Plan\n\n- Learn MCP core concepts\n- Build a server with tools\n- Connect to Claude\n- Create amazing AI experiences"
-        }
-      });
-      const updateContent = updateTodoResult.content as ContentText[];
-      console.log(updateContent[0].text);
-
-      /**
-       * Mark todo as completed
-       * 
-       * This demonstrates the complete-todo tool, which takes listId and seqno
-       * and marks the corresponding todo as completed.
-       */
-      console.log("\nCompleting the test todo...");
-      const completeTodoResult = await client.callTool({
-        name: "complete-todo",
-        arguments: {
-          listId: listId,
-          seqno: todoSeqno
-        }
-      });
-      const completeContent = completeTodoResult.content as ContentText[];
-      console.log(completeContent[0].text);
 
       /**
        * Summarize active todos
