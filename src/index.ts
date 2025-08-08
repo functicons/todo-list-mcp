@@ -124,31 +124,7 @@ server.tool(
   }
 );
 
-/**
- * Tool 2: List all todos
- * 
- * This tool:
- * 1. Retrieves all todos from the service
- * 2. Formats them as a list
- * 3. Returns the formatted list
- */
-server.tool(
-  "list-todos",
-  "List all todos",
-  {},
-  async () => {
-    const result = await safeExecute(async () => {
-      const todos = await todoService.getAllTodos();
-      return formatTodoList(todos);
-    }, "Failed to list todos");
 
-    if (result instanceof Error) {
-      return createErrorResponse(result.message);
-    }
-
-    return createSuccessResponse(result);
-  }
-);
 
 /**
  * Tool 3: Get a specific todo by ID

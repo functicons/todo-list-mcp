@@ -117,9 +117,6 @@ Once configured with your AI client, try these commands:
 - "Update the presentation todo to 'completed'"
 - "Create a high-priority todo for the client meeting tomorrow"
 
-### Organization & Status
-- "Summarize all my active todos"
-- "Show me all uncompleted tasks"
 - "List all todos across my lists"
 
 ### Multiple Lists
@@ -141,9 +138,7 @@ The server provides these tools for AI clients:
 - List todos within specific lists
 - Organize todos across multiple lists
 
-**Data & Filtering:**
 - List all todos or filter by completion status
-- Organize todos across multiple lists
 
 ## API Specification
 
@@ -175,9 +170,7 @@ The server provides these tools for AI clients:
 - `listId` (string, required): UUID of the todo list
 - `seqno` (number, required): Sequence number of the todo in the list
 
-#### `list-todos`
-**Description**: List all todos across all lists  
-**Parameters**: None
+
 
 #### `list-active-todos`
 **Description**: List all non-completed todos  

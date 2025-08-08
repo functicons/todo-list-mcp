@@ -157,19 +157,7 @@ async function main() {
       const listByListContent = listTodosByListResult.content as ContentText[];
       console.log(listByListContent[0].text);
 
-      /**
-       * List all todos
-       * 
-       * This demonstrates the list-todos tool, which takes no arguments
-       * and returns a formatted list of all todos.
-       */
-      console.log("\nListing all todos...");
-      const listTodosResult = await client.callTool({
-        name: "list-todos",
-        arguments: {}
-      });
-      const listContent = listTodosResult.content as ContentText[];
-      console.log(listContent[0].text);
+      
 
       /**
        * Summarize active todos
