@@ -118,11 +118,10 @@ Once configured with your AI client, try these commands:
 - "Update my presentation todo to include slide design"
 - "Create a high-priority todo for the client meeting tomorrow"
 
-### Organization & Search
+### Organization & Status
 - "Summarize all my active todos"
-- "Search for todos containing 'meeting'"
 - "Show me all uncompleted tasks"
-- "List todos I created today"
+- "List all todos across my lists"
 
 ### Multiple Lists
 - "Create a personal todo list for weekend activities"
@@ -135,7 +134,6 @@ The server provides these tools for AI clients:
 
 **Todo Management:**
 - Create, update, complete, and delete todos
-- Search todos by title or date
 - List active (incomplete) todos
 - Get todo summaries
 
@@ -144,10 +142,9 @@ The server provides these tools for AI clients:
 - List todos within specific lists
 - Organize todos across multiple lists
 
-**Data & Search:**
-- Full-text search across all todos
-- Date-based filtering
-- Completion status filtering
+**Data & Filtering:**
+- List all todos or filter by completion status
+- Organize todos across multiple lists
 
 ## API Specification
 
@@ -193,18 +190,6 @@ The server provides these tools for AI clients:
 #### `summarize-active-todos`
 **Description**: Generate a summary of all active todos  
 **Parameters**: None
-
-### Search Operations
-
-#### `search-todos-by-title`
-**Description**: Search todos by title (case-insensitive partial match)  
-**Parameters**:
-- `title` (string, required): Search term to match in todo titles
-
-#### `search-todos-by-date`
-**Description**: Search todos by creation date  
-**Parameters**:
-- `date` (string, required): Date in YYYY-MM-DD format
 
 ### Todo List Operations
 

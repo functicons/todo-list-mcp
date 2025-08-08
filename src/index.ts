@@ -28,8 +28,6 @@ import {
   UpdateTodoSchema,
   CompleteTodoSchema,
   DeleteTodoSchema,
-  SearchTodosByTitleSchema,
-  SearchTodosByDateSchema,
   ListTodosByListIdSchema
 } from "./models/Todo.js";
 
@@ -308,75 +306,7 @@ server.tool(
 );
 
 /**
- * Tool 7: Search todos by title
- * 
- * This tool:
- * 1. Validates the search term
- * 2. Searches todos by title using the service
- * 3. Returns a formatted list of matching todos
- * 
- * WHY HAVE SEARCH?
- * - Makes it easy to find specific todos when the list grows large
- * - Allows partial matching without requiring exact title
- * - Case-insensitive for better user experience
- */
-server.tool(
-  "search-todos-by-title",
-  "Search todos by title (case insensitive partial match)",
-  {
-    title: z.string().min(1, "Search term is required"),
-  },
-  async ({ title }) => {
-    const result = await safeExecute(async () => {
-      const validatedData = SearchTodosByTitleSchema.parse({ title });
-      const todos = await todoService.searchByTitle(validatedData.title);
-      return formatTodoList(todos);
-    }, "Failed to search todos");
-
-    if (result instanceof Error) {
-      return createErrorResponse(result.message);
-    }
-
-    return createSuccessResponse(result);
-  }
-);
-
-/**
- * Tool 8: Search todos by date
- * 
- * This tool:
- * 1. Validates the date format (YYYY-MM-DD)
- * 2. Searches todos created on that date
- * 3. Returns a formatted list of matching todos
- * 
- * WHY DATE SEARCH?
- * - Allows finding todos created on a specific day
- * - Useful for reviewing what was added on a particular date
- * - Complements title search for different search needs
- */
-server.tool(
-  "search-todos-by-date",
-  "Search todos by creation date (format: YYYY-MM-DD)",
-  {
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
-  },
-  async ({ date }) => {
-    const result = await safeExecute(async () => {
-      const validatedData = SearchTodosByDateSchema.parse({ date });
-      const todos = await todoService.searchByDate(validatedData.date);
-      return formatTodoList(todos);
-    }, "Failed to search todos by date");
-
-    if (result instanceof Error) {
-      return createErrorResponse(result.message);
-    }
-
-    return createSuccessResponse(result);
-  }
-);
-
-/**
- * Tool 9: List active todos
+ * Tool 7: List active todos
  * 
  * This tool:
  * 1. Retrieves all non-completed todos
@@ -406,7 +336,7 @@ server.tool(
 );
 
 /**
- * Tool 10: Summarize active todos
+ * Tool 8: Summarize active todos
  * 
  * This tool:
  * 1. Generates a summary of all active todos

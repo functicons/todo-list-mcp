@@ -71,16 +71,6 @@ export const DeleteTodoSchema = z.object({
   id: z.string().uuid("Invalid Todo ID"),
 });
 
-// Schema for searching todos by title - requires search term
-export const SearchTodosByTitleSchema = z.object({
-  title: z.string().min(1, "Search term is required"),
-});
-
-// Schema for searching todos by date - requires date in YYYY-MM-DD format
-export const SearchTodosByDateSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
-});
-
 // Schema for listing todos by list ID
 export const ListTodosByListIdSchema = z.object({
   listId: z.string().uuid("Invalid TodoList ID"),
