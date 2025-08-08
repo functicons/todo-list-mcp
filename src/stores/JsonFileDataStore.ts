@@ -10,6 +10,12 @@ import { dirname } from 'path';
 import { Todo } from '../models/Todo.js';
 import { TodoList } from '../models/TodoList.js';
 import { DataStore } from '../interfaces/DataStore.js';
+import {
+  DataStoreInitializationException,
+  FileOperationException,
+  DataValidationException,
+  ConstraintViolationException
+} from '../exceptions/DataStoreExceptions.js';
 
 /**
  * Data structure for JSON file storage
@@ -52,7 +58,16 @@ export class JsonFileDataStore implements DataStore {
       // Try to load existing data
       try {
         const fileContent = await fs.readFile(this.filePath, 'utf-8');
-        this.data = JSON.parse(fileContent);
+        
+        try {
+          this.data = JSON.parse(fileContent);
+        } catch (parseError) {
+          throw new DataValidationException(
+            `Invalid JSON format in data file: ${parseError instanceof Error ? parseError.message : parseError}`,
+            'file_content',
+            fileContent.substring(0, 100) + '...'
+          );
+        }
         
         // Handle migration if needed
         if (!this.data.version) {
@@ -67,11 +82,30 @@ export class JsonFileDataStore implements DataStore {
           this.data.todos = [];
         }
       } catch (error) {
-        // File doesn't exist or is invalid, start with empty data
-        await this.saveData();
+        if (error instanceof DataValidationException) {
+          throw error;
+        }
+        
+        // File doesn't exist, start with empty data
+        if ((error as any).code === 'ENOENT') {
+          await this.saveData();
+        } else {
+          throw new FileOperationException(
+            `Failed to read data file: ${error instanceof Error ? error.message : error}`,
+            'READ',
+            this.filePath,
+            error instanceof Error ? error : undefined
+          );
+        }
       }
     } catch (error) {
-      throw new Error(`Failed to initialize JSON file data store: ${error}`);
+      if (error instanceof DataValidationException || error instanceof FileOperationException) {
+        throw error;
+      }
+      throw new DataStoreInitializationException(
+        `Failed to initialize JSON file data store: ${error instanceof Error ? error.message : error}`,
+        error instanceof Error ? error : undefined
+      );
     }
   }
 
@@ -92,13 +126,26 @@ export class JsonFileDataStore implements DataStore {
       await fs.writeFile(tempPath, dataString, 'utf-8');
       await fs.rename(tempPath, this.filePath);
     } catch (error) {
-      throw new Error(`Failed to save data: ${error}`);
+      throw new FileOperationException(
+        `Failed to save data: ${error instanceof Error ? error.message : error}`,
+        'WRITE',
+        this.filePath,
+        error instanceof Error ? error : undefined
+      );
     }
   }
 
   // TodoList operations
 
   async createTodoList(todoList: TodoList): Promise<TodoList> {
+    // Check for duplicate ID
+    if (this.data.todoLists.some(list => list.id === todoList.id)) {
+      throw new ConstraintViolationException(
+        `TodoList with ID '${todoList.id}' already exists`,
+        'UNIQUE'
+      );
+    }
+    
     this.data.todoLists.push(todoList);
     await this.saveData();
     return todoList;
@@ -147,6 +194,22 @@ export class JsonFileDataStore implements DataStore {
   // Todo operations
 
   async createTodo(todo: Todo): Promise<Todo> {
+    // Check for duplicate ID
+    if (this.data.todos.some(t => t.id === todo.id)) {
+      throw new ConstraintViolationException(
+        `Todo with ID '${todo.id}' already exists`,
+        'UNIQUE'
+      );
+    }
+    
+    // Check that the referenced TodoList exists
+    if (!this.data.todoLists.some(list => list.id === todo.listId)) {
+      throw new ConstraintViolationException(
+        `TodoList with ID '${todo.listId}' does not exist`,
+        'FOREIGN_KEY'
+      );
+    }
+    
     this.data.todos.push(todo);
     await this.saveData();
     return todo;

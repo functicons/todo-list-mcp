@@ -7,6 +7,11 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TestUtils, TodoAssertions, runDataStoreTests } from './test_framework.js';
+import {
+  ConstraintViolationException,
+  DataValidationException,
+  FileOperationException
+} from '../src/exceptions/DataStoreExceptions.js';
 
 /**
  * Run all integration tests for both data store implementations
@@ -133,6 +138,114 @@ async function runAllTests() {
         const allTodos = await store.getTodosByListId(todoList.id);
         TodoAssertions.assertArrayLength(allTodos, 5, 'All concurrent todos should be saved');
         
+      } finally {
+        await store.close();
+      }
+    });
+  });
+
+  describe('Custom Exception Tests', () => {
+    test('JsonFileDataStore: Throws ConstraintViolationException for duplicate TodoList ID', async () => {
+      const store = await TestUtils.createJsonStore();
+      try {
+        const todoList = TestUtils.createSampleTodoList({ name: 'Test List' });
+        await store.createTodoList(todoList);
+        
+        await assert.rejects(
+          async () => {
+            await store.createTodoList(todoList); // Same ID again
+          },
+          {
+            name: 'ConstraintViolationException',
+            message: /already exists/
+          },
+          'Should throw ConstraintViolationException for duplicate TodoList ID'
+        );
+      } finally {
+        await store.close();
+      }
+    });
+
+    test('JsonFileDataStore: Throws ConstraintViolationException for non-existent TodoList reference', async () => {
+      const store = await TestUtils.createJsonStore();
+      try {
+        const todo = TestUtils.createSampleTodo('non-existent-list-id');
+        
+        await assert.rejects(
+          async () => {
+            await store.createTodo(todo);
+          },
+          {
+            name: 'ConstraintViolationException',
+            message: /does not exist/
+          },
+          'Should throw ConstraintViolationException for non-existent TodoList reference'
+        );
+      } finally {
+        await store.close();
+      }
+    });
+
+    test('SqliteDataStore: Throws ConstraintViolationException for duplicate Todo ID', async () => {
+      const store = await TestUtils.createSqliteStore();
+      try {
+        const todoList = TestUtils.createSampleTodoList();
+        await store.createTodoList(todoList);
+        
+        const todo = TestUtils.createSampleTodo(todoList.id, { title: 'Test Todo' });
+        await store.createTodo(todo);
+        
+        await assert.rejects(
+          async () => {
+            await store.createTodo(todo); // Same ID again
+          },
+          {
+            name: 'ConstraintViolationException',
+            message: /already exists/
+          },
+          'Should throw ConstraintViolationException for duplicate Todo ID'
+        );
+      } finally {
+        await store.close();
+      }
+    });
+
+    test('SqliteDataStore: Throws ConstraintViolationException for foreign key violation', async () => {
+      const store = await TestUtils.createSqliteStore();
+      try {
+        const todo = TestUtils.createSampleTodo('non-existent-list-id');
+        
+        await assert.rejects(
+          async () => {
+            await store.createTodo(todo);
+          },
+          {
+            name: 'ConstraintViolationException',
+            message: /does not exist/
+          },
+          'Should throw ConstraintViolationException for foreign key violation'
+        );
+      } finally {
+        await store.close();
+      }
+    });
+
+    test('Custom exceptions have correct properties', async () => {
+      const store = await TestUtils.createSqliteStore();
+      try {
+        const todoList = TestUtils.createSampleTodoList({ name: 'Test List' });
+        await store.createTodoList(todoList);
+        
+        try {
+          await store.createTodoList(todoList); // Duplicate
+          assert.fail('Should have thrown ConstraintViolationException');
+        } catch (error) {
+          assert.ok(error instanceof ConstraintViolationException, 'Should be ConstraintViolationException');
+          const constraintError = error as ConstraintViolationException;
+          assert.equal(constraintError.code, 'CONSTRAINT_VIOLATION', 'Should have correct error code');
+          assert.equal(constraintError.constraintType, 'UNIQUE', 'Should have correct constraint type');
+          assert.equal(constraintError.constraintName, 'PRIMARY KEY', 'Should have correct constraint name');
+        }
       } finally {
         await store.close();
       }

@@ -11,6 +11,12 @@ import { promises as fs } from 'fs';
 import { Todo } from '../models/Todo.js';
 import { TodoList } from '../models/TodoList.js';
 import { DataStore } from '../interfaces/DataStore.js';
+import {
+  DataStoreInitializationException,
+  IncompatibleSchemaException,
+  DatabaseOperationException,
+  ConstraintViolationException
+} from '../exceptions/DataStoreExceptions.js';
 
 /**
  * SqliteDataStore Class
@@ -46,7 +52,13 @@ export class SqliteDataStore implements DataStore {
       // Initialize the database schema
       this.initSchema();
     } catch (error) {
-      throw new Error(`Failed to initialize SQLite data store: ${error}`);
+      if (error instanceof IncompatibleSchemaException) {
+        throw error; // Re-throw schema exceptions as-is
+      }
+      throw new DataStoreInitializationException(
+        `Failed to initialize SQLite data store: ${error instanceof Error ? error.message : error}`,
+        error instanceof Error ? error : undefined
+      );
     }
   }
 
@@ -63,8 +75,8 @@ export class SqliteDataStore implements DataStore {
    * Initialize the database schema
    */
   private initSchema(): void {
-    // Check if we need to migrate from the old schema
-    this.migrateSchema();
+    // Check if database has incompatible schema
+    this.validateSchema();
 
     // Create todo_lists table if it doesn't exist
     this.db.exec(`
@@ -98,9 +110,10 @@ export class SqliteDataStore implements DataStore {
   }
 
   /**
-   * Migrate from old schema to new schema
+   * Validate that the existing database schema is compatible
+   * Throws IncompatibleSchemaException if the schema doesn't match expectations
    */
-  private migrateSchema(): void {
+  private validateSchema(): void {
     try {
       const tableInfo = this.db.prepare("PRAGMA table_info(todos)").all() as any[];
       
@@ -108,61 +121,20 @@ export class SqliteDataStore implements DataStore {
         const hasListId = tableInfo.some((column: any) => column.name === 'listId');
         
         if (!hasListId) {
-          console.error('Migrating from old schema to new schema...');
-          
-          const defaultListId = 'default-list-' + new Date().getTime();
-          const now = new Date().toISOString();
-          
-          // Create todo_lists table first
-          this.db.exec(`
-            CREATE TABLE IF NOT EXISTS todo_lists (
-              id TEXT PRIMARY KEY,
-              name TEXT NOT NULL,
-              description TEXT NOT NULL,
-              createdAt TEXT NOT NULL,
-              updatedAt TEXT NOT NULL
-            )
-          `);
-          
-          // Insert default todo list
-          const insertDefaultList = this.db.prepare(`
-            INSERT INTO todo_lists (id, name, description, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?)
-          `);
-          insertDefaultList.run(defaultListId, 'Default List', 'Migrated from single list', now, now);
-          
-          // Rename old todos table
-          this.db.exec('ALTER TABLE todos RENAME TO todos_old');
-          
-          // Create new todos table with listId
-          this.db.exec(`
-            CREATE TABLE todos (
-              id TEXT PRIMARY KEY,
-              listId TEXT NOT NULL,
-              title TEXT NOT NULL,
-              description TEXT NOT NULL,
-              completedAt TEXT NULL,
-              createdAt TEXT NOT NULL,
-              updatedAt TEXT NOT NULL,
-              FOREIGN KEY (listId) REFERENCES todo_lists (id) ON DELETE CASCADE
-            )
-          `);
-          
-          // Migrate data from old table to new table
-          this.db.exec(`
-            INSERT INTO todos (id, listId, title, description, completedAt, createdAt, updatedAt)
-            SELECT id, '${defaultListId}', title, description, completedAt, createdAt, updatedAt
-            FROM todos_old
-          `);
-          
-          // Drop old table
-          this.db.exec('DROP TABLE todos_old');
-          
-          console.error(`Migration completed. Created default list with ID: ${defaultListId}`);
+          const currentColumns = tableInfo.map((col: any) => col.name).join(', ');
+          throw new IncompatibleSchemaException(
+            'Incompatible database schema detected. The existing todos table does not have the required "listId" column. ' +
+            'Please use a new database file or manually migrate your data to the new schema.',
+            'todos table with listId column',
+            `todos table with columns: ${currentColumns}`
+          );
         }
       }
     } catch (error) {
-      // If there's any error during migration, it's likely that the tables don't exist yet
+      if (error instanceof IncompatibleSchemaException) {
+        throw error;
+      }
+      // If there's any other error, it's likely that the tables don't exist yet, which is fine
     }
   }
 
@@ -198,13 +170,28 @@ export class SqliteDataStore implements DataStore {
   // TodoList operations
 
   async createTodoList(todoList: TodoList): Promise<TodoList> {
-    const stmt = this.db.prepare(`
-      INSERT INTO todo_lists (id, name, description, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    
-    stmt.run(todoList.id, todoList.name, todoList.description, todoList.createdAt, todoList.updatedAt);
-    return todoList;
+    try {
+      const stmt = this.db.prepare(`
+        INSERT INTO todo_lists (id, name, description, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+      
+      stmt.run(todoList.id, todoList.name, todoList.description, todoList.createdAt, todoList.updatedAt);
+      return todoList;
+    } catch (error: any) {
+      if (error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+        throw new ConstraintViolationException(
+          `TodoList with ID '${todoList.id}' already exists`,
+          'UNIQUE',
+          'PRIMARY KEY'
+        );
+      }
+      throw new DatabaseOperationException(
+        `Failed to create TodoList: ${error.message}`,
+        'INSERT',
+        error
+      );
+    }
   }
 
   async getTodoList(id: string): Promise<TodoList | undefined> {
@@ -249,13 +236,35 @@ export class SqliteDataStore implements DataStore {
   // Todo operations
 
   async createTodo(todo: Todo): Promise<Todo> {
-    const stmt = this.db.prepare(`
-      INSERT INTO todos (id, listId, title, description, completedAt, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    stmt.run(todo.id, todo.listId, todo.title, todo.description, todo.completedAt, todo.createdAt, todo.updatedAt);
-    return todo;
+    try {
+      const stmt = this.db.prepare(`
+        INSERT INTO todos (id, listId, title, description, completedAt, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+      
+      stmt.run(todo.id, todo.listId, todo.title, todo.description, todo.completedAt, todo.createdAt, todo.updatedAt);
+      return todo;
+    } catch (error: any) {
+      if (error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+        throw new ConstraintViolationException(
+          `Todo with ID '${todo.id}' already exists`,
+          'UNIQUE',
+          'PRIMARY KEY'
+        );
+      }
+      if (error.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+        throw new ConstraintViolationException(
+          `TodoList with ID '${todo.listId}' does not exist`,
+          'FOREIGN_KEY',
+          'listId'
+        );
+      }
+      throw new DatabaseOperationException(
+        `Failed to create Todo: ${error.message}`,
+        'INSERT',
+        error
+      );
+    }
   }
 
   async getTodo(id: string): Promise<Todo | undefined> {

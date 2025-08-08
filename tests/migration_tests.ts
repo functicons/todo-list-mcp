@@ -1,8 +1,8 @@
 /**
  * migration_tests.ts
  * 
- * Tests for data migration from old SQLite schema to new schema
- * and compatibility between different storage formats.
+ * Tests for schema validation and error handling when encountering
+ * incompatible database schemas.
  */
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,11 +12,12 @@ import { promises as fs } from 'fs';
 import Database from 'better-sqlite3';
 import { SqliteDataStore } from '../src/stores/SqliteDataStore.js';
 import { TodoAssertions } from './test_framework.js';
+import { IncompatibleSchemaException } from '../src/exceptions/DataStoreExceptions.js';
 
 /**
- * Migration test utilities
+ * Schema validation test utilities
  */
-class MigrationTestUtils {
+class SchemaTestUtils {
   /**
    * Create a database with old schema (without listId)
    */
@@ -53,78 +54,35 @@ class MigrationTestUtils {
    * Get a unique temporary database path
    */
   static getTempDbPath(): string {
-    return join(tmpdir(), `migration-test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.sqlite`);
+    return join(tmpdir(), `schema-test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.sqlite`);
   }
 }
 
 /**
- * Run migration tests
+ * Run schema validation tests
  */
 export async function runMigrationTests(): Promise<void> {
-  describe('Data Migration Tests', () => {
-    test('SQLite: Migrate from old schema to new schema', async () => {
-      const dbPath = MigrationTestUtils.getTempDbPath();
+  describe('Schema Validation Tests', () => {
+    test('SQLite: Error on incompatible schema', async () => {
+      const dbPath = SchemaTestUtils.getTempDbPath();
       
       try {
         // Create old schema database with data
-        await MigrationTestUtils.createOldSchemaDatabase(dbPath);
+        await SchemaTestUtils.createOldSchemaDatabase(dbPath);
         
-        // Initialize new SqliteDataStore (should trigger migration)
+        // Initialize new SqliteDataStore (should throw error due to incompatible schema)
         const store = new SqliteDataStore(dbPath);
-        await store.initialize();
         
-        try {
-          // Verify that migration created default todo list
-          const todoLists = await store.getAllTodoLists();
-          TodoAssertions.assertArrayLength(todoLists, 1, 'Should have 1 default todo list after migration');
-          
-          const defaultList = todoLists[0];
-          assert.equal(defaultList.name, 'Default List', 'Should have default list name');
-          assert.equal(defaultList.description, 'Migrated from single list', 'Should have migration description');
-          
-          // Verify that old todos were migrated with listId
-          const todos = await store.getAllTodos();
-          TodoAssertions.assertArrayLength(todos, 3, 'Should have 3 migrated todos');
-          
-          todos.forEach(todo => {
-            assert.equal(todo.listId, defaultList.id, 'Migrated todo should have default list ID');
-            TodoAssertions.assertTodo(todo, { listId: defaultList.id });
-          });
-          
-          // Verify specific migrated data
-          const todo1 = todos.find(t => t.title === 'Old Todo 1');
-          const todo2 = todos.find(t => t.title === 'Old Todo 2');
-          const todo3 = todos.find(t => t.title === 'Old Todo 3');
-          
-          assert.ok(todo1, 'Should find migrated todo 1');
-          assert.ok(todo2, 'Should find migrated todo 2');
-          assert.ok(todo3, 'Should find migrated todo 3');
-          
-          // Check completion status is preserved
-          TodoAssertions.assertTodoNotCompleted(todo1!);
-          TodoAssertions.assertTodoCompleted(todo2!);
-          TodoAssertions.assertTodoNotCompleted(todo3!);
-          
-          // Verify new operations work after migration
-          const newTodo = await store.createTodo({
-            id: 'new-todo-1',
-            listId: defaultList.id,
-            title: 'New Todo After Migration',
-            description: 'This todo was created after migration',
-            completed: false,
-            completedAt: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          });
-          
-          TodoAssertions.assertTodo(newTodo, { 
-            title: 'New Todo After Migration',
-            listId: defaultList.id 
-          });
-          
-        } finally {
-          await store.close();
-        }
+        await assert.rejects(
+          async () => {
+            await store.initialize();
+          },
+          {
+            name: 'IncompatibleSchemaException',
+            message: /Incompatible database schema detected/
+          },
+          'Should throw IncompatibleSchemaException for incompatible schema'
+        );
         
       } finally {
         // Cleanup
@@ -136,36 +94,39 @@ export async function runMigrationTests(): Promise<void> {
       }
     });
 
-    test('SQLite: Migration is idempotent', async () => {
-      const dbPath = MigrationTestUtils.getTempDbPath();
+    test('SQLite: Error message provides helpful guidance', async () => {
+      const dbPath = SchemaTestUtils.getTempDbPath();
       
       try {
         // Create old schema
-        await MigrationTestUtils.createOldSchemaDatabase(dbPath);
+        await SchemaTestUtils.createOldSchemaDatabase(dbPath);
         
-        // Run migration first time
-        const store1 = new SqliteDataStore(dbPath);
-        await store1.initialize();
-        const todosAfterFirstMigration = await store1.getAllTodos();
-        const listsAfterFirstMigration = await store1.getAllTodoLists();
-        await store1.close();
+        // Try to initialize with incompatible schema
+        const store = new SqliteDataStore(dbPath);
         
-        // Run migration second time (should be no-op)
-        const store2 = new SqliteDataStore(dbPath);
-        await store2.initialize();
-        const todosAfterSecondMigration = await store2.getAllTodos();
-        const listsAfterSecondMigration = await store2.getAllTodoLists();
-        await store2.close();
-        
-        // Should have same data
-        assert.equal(todosAfterFirstMigration.length, todosAfterSecondMigration.length, 
-          'Todo count should be same after repeated migration');
-        assert.equal(listsAfterFirstMigration.length, listsAfterSecondMigration.length, 
-          'TodoList count should be same after repeated migration');
-        
-        // Verify specific data matches
-        assert.equal(listsAfterFirstMigration[0].id, listsAfterSecondMigration[0].id, 
-          'Default list ID should be same');
+        try {
+          await store.initialize();
+          assert.fail('Should have thrown an IncompatibleSchemaException');
+        } catch (error) {
+          assert.ok(error instanceof IncompatibleSchemaException, 'Should throw an IncompatibleSchemaException');
+          assert.ok(
+            error.message.includes('Incompatible database schema detected'),
+            'Error message should mention incompatible schema'
+          );
+          assert.ok(
+            error.message.includes('listId'),
+            'Error message should mention the missing listId column'
+          );
+          assert.ok(
+            error.message.includes('new database file'),
+            'Error message should suggest using a new database file'
+          );
+          
+          // Test custom exception properties
+          assert.equal(error.code, 'INCOMPATIBLE_SCHEMA', 'Should have correct error code');
+          assert.equal(error.expectedSchema, 'todos table with listId column', 'Should have expected schema info');
+          assert.ok(error.actualSchema?.includes('todos table with columns:'), 'Should have actual schema info');
+        }
         
       } finally {
         try {
@@ -176,11 +137,11 @@ export async function runMigrationTests(): Promise<void> {
       }
     });
 
-    test('SQLite: No migration needed for new database', async () => {
-      const dbPath = MigrationTestUtils.getTempDbPath();
+    test('SQLite: No validation error for new database', async () => {
+      const dbPath = SchemaTestUtils.getTempDbPath();
       
       try {
-        // Initialize new database (no migration needed)
+        // Initialize new database (no validation error expected)
         const store = new SqliteDataStore(dbPath);
         await store.initialize();
         
@@ -218,10 +179,10 @@ export async function runMigrationTests(): Promise<void> {
   });
 }
 
-// Run migration tests if this file is executed directly
+// Run schema validation tests if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   runMigrationTests().catch(error => {
-    console.error('❌ Migration tests failed:', error);
+    console.error('❌ Schema validation tests failed:', error);
     process.exit(1);
   });
 }
