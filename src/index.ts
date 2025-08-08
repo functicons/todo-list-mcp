@@ -43,6 +43,7 @@ import { dataService } from "./services/DataService.js";
 // Import utilities
 import { createSuccessResponse, createErrorResponse, formatTodo, formatTodoList, formatTodoListInfo } from "./utils/formatters.js";
 import { config } from "./config.js";
+import { apiLogger } from "./utils/apiLogger.js";
 
 /**
  * Create the MCP server
@@ -87,6 +88,54 @@ async function safeExecute<T>(operation: () => T | Promise<T>, errorMessage: str
 }
 
 /**
+ * Wrapper function to add logging to tool handlers
+ */
+function withLogging<T extends Record<string, any>>(
+  toolName: string,
+  handler: (params: T) => Promise<any>
+) {
+  return async (params: T) => {
+    const startTime = Date.now();
+    
+    try {
+      const result = await handler(params);
+      const duration = Date.now() - startTime;
+      const success = !result.content?.includes('Error:');
+      
+      const responseText = typeof result === 'string' ? result : 
+                       (result.content && Array.isArray(result.content) ? 
+                        result.content.map((c: any) => c.text || c).join(' ') : 
+                        result.content || JSON.stringify(result));
+      
+      await apiLogger.logToolCall(
+        toolName,
+        params,
+        success,
+        responseText,
+        success ? undefined : responseText,
+        duration
+      );
+      
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      await apiLogger.logToolCall(
+        toolName,
+        params,
+        false,
+        undefined,
+        errorMessage,
+        duration
+      );
+      
+      throw error;
+    }
+  };
+}
+
+/**
  * Tool 1: Create a new todo
  * 
  * This tool:
@@ -108,7 +157,7 @@ server.tool(
     listId: z.string().uuid("Invalid TodoList ID"),
     title: z.string().min(1, "Title is required"),
   },
-  async ({ listId, title }) => {
+  withLogging("create-todo", async ({ listId, title }) => {
     const result = await safeExecute(async () => {
       const validatedData = CreateTodoSchema.parse({ listId, title });
       const newTodo = await todoService.createTodo(validatedData);
@@ -120,7 +169,7 @@ server.tool(
     }
 
     return createSuccessResponse(`✅ Todo Created:\n\n${result}`);
-  }
+  })
 );
 
 /**
@@ -139,7 +188,7 @@ server.tool(
     seqno: z.number().int().positive("Sequence number must be a positive integer").optional(),
     status: z.enum(['pending', 'done', 'canceled']).optional(),
   },
-  async ({ listId, seqno, status }) => {
+  withLogging("get-todos", async ({ listId, seqno, status }) => {
     const result = await safeExecute(async () => {
       // If seqno is provided, get a specific todo
       if (seqno !== undefined) {
@@ -174,7 +223,7 @@ server.tool(
     }
 
     return createSuccessResponse(result);
-  }
+  })
 );
 
 /**
@@ -194,7 +243,7 @@ server.tool(
     seqno: z.number().int().positive("Sequence number must be a positive integer"),
     status: z.enum(['pending', 'done', 'canceled']),
   },
-  async ({ listId, seqno, status }) => {
+  withLogging("update-todo", async ({ listId, seqno, status }) => {
     const result = await safeExecute(async () => {
       const validatedData = UpdateTodoSchema.parse({ listId, seqno, status });
       
@@ -211,7 +260,7 @@ server.tool(
     }
 
     return createSuccessResponse(`✅ Todo Updated:\n\n${result}`);
-  }
+  })
 );
 
 
@@ -228,7 +277,7 @@ server.tool(
   "create-todo-list",
   "Create a new todo list",
   {},
-  async () => {
+  withLogging("create-todo-list", async () => {
     const result = await safeExecute(async () => {
       const validatedData = CreateTodoListSchema.parse({});
       const newTodoList = await todoListService.createTodoList(validatedData);
@@ -240,7 +289,7 @@ server.tool(
     }
 
     return createSuccessResponse(`✅ Todo List Created:\n\n${result}`);
-  }
+  })
 );
 
 
