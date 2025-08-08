@@ -208,56 +208,15 @@ Your todo data is stored locally:
 
 ## Development
 
-For developers wanting to extend or contribute:
+For developers wanting to extend, contribute, or understand the internal architecture, see the [Developer Guide](docs/developer_guide.md).
 
-```bash
-# Run in development mode
-npm run dev
-
-# Run tests
-npm run test:integration
-
-# Test the client
-npm run test-client
-
-# Debug SQLite database contents
-npm run dump-sqlite
-
-# Launch MCP Inspector for interactive debugging
-npm run inspect
-```
-
-### Debugging
-
-**MCP Inspector (Interactive Debugging):**
-```bash
-# Launch web-based MCP inspector
-npm run inspect
-
-# Or specify custom server path
-./scripts/inspect-mcp-server.sh /path/to/server.js
-```
-
-The MCP Inspector provides:
-- Web-based interface for testing all MCP tools
-- Interactive parameter input and response viewing
-- Real-time server communication debugging
-- Tool schema and validation inspection
-
-**SQLite Database Inspection:**
-```bash
-# Dump SQLite database contents (requires sqlite3 command)
-npm run dump-sqlite
-
-# Or specify custom database path
-./scripts/dump-sqlite.sh /path/to/custom/database.sqlite
-```
-
-The dump script shows:
-- Database schema and table structure
-- All todo lists and todos with their relationships  
-- Statistics (active/completed counts, todos per list)
-- Recent activity and advanced queries
+The developer guide includes:
+- **Project Structure**: Detailed codebase organization
+- **Internal Architecture**: How the system works internally
+- **Testing Strategy**: Comprehensive testing approach
+- **Development Workflow**: Setup, debugging, and extension patterns
+- **Performance Considerations**: Storage backend comparisons
+- **Extension Points**: How to add new features
 
 ## License
 
