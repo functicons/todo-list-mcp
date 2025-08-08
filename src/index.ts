@@ -124,31 +124,51 @@ server.tool(
   }
 );
 
-
-
 /**
- * Tool 3: Get a specific todo by ID
+ * Get todos in a list with optional filters
  * 
  * This tool:
- * 1. Validates the input ID
- * 2. Retrieves the specific todo
- * 3. Returns the formatted todo
+ * 1. Gets all todos in a list, or a specific todo if seqno is provided
+ * 2. Optionally filters by status
+ * 3. Returns formatted results
  */
 server.tool(
-  "get-todo",
-  "Get a specific todo by its list ID and sequence number",
+  "get-todos",
+  "Get todos in a list with optional filters for specific todo (seqno) or status",
   {
     listId: z.string().uuid("Invalid TodoList ID"),
-    seqno: z.number().int().positive("Sequence number must be a positive integer"),
+    seqno: z.number().int().positive("Sequence number must be a positive integer").optional(),
+    status: z.enum(['pending', 'completed', 'canceled']).optional(),
   },
-  async ({ listId, seqno }) => {
+  async ({ listId, seqno, status }) => {
     const result = await safeExecute(async () => {
-      const todo = await todoService.getTodo(listId, seqno);
-      if (!todo) {
-        throw new Error(`Todo with seqno ${seqno} in list ${listId} not found`);
+      // If seqno is provided, get a specific todo
+      if (seqno !== undefined) {
+        const todo = await todoService.getTodo(listId, seqno);
+        if (!todo) {
+          throw new Error(`Todo with seqno ${seqno} in list ${listId} not found`);
+        }
+        // If status filter is provided, check if todo matches
+        if (status !== undefined && todo.status !== status) {
+          return "No todos found matching the specified criteria.";
+        }
+        return formatTodo(todo);
       }
-      return formatTodo(todo);
-    }, "Failed to get todo");
+
+      // Get all todos in the list
+      let todos = await todoService.getTodosByListId(listId);
+      
+      // Filter by status if provided
+      if (status !== undefined) {
+        todos = todos.filter(todo => todo.status === status);
+      }
+
+      if (todos.length === 0) {
+        return "No todos found matching the specified criteria.";
+      }
+
+      return formatTodoList(todos);
+    }, "Failed to get todos in list");
 
     if (result instanceof Error) {
       return createErrorResponse(result.message);
@@ -195,47 +215,6 @@ server.tool(
   }
 );
 
-/**
- * Tool 6: Delete a todo
- * 
- * This tool:
- * 1. Validates the todo ID
- * 2. Retrieves the todo to be deleted (for the response)
- * 3. Deletes the todo using the service
- * 4. Returns a success message with the deleted todo's title
- */
-server.tool(
-  "delete-todo",
-  "Delete a todo",
-  {
-    listId: z.string().uuid("Invalid TodoList ID"),
-    seqno: z.number().int().positive("Sequence number must be a positive integer"),
-  },
-  async ({ listId, seqno }) => {
-    const result = await safeExecute(async () => {
-      const validatedData = DeleteTodoSchema.parse({ listId, seqno });
-      const todo = await todoService.getTodo(validatedData.listId, validatedData.seqno);
-      
-      if (!todo) {
-        throw new Error(`Todo with seqno ${seqno} in list ${listId} not found`);
-      }
-      
-      const success = await todoService.deleteTodo(validatedData);
-      
-      if (!success) {
-        throw new Error(`Failed to delete todo with seqno ${seqno} in list ${listId}`);
-      }
-      
-      return todo.title;
-    }, "Failed to delete todo");
-
-    if (result instanceof Error) {
-      return createErrorResponse(result.message);
-    }
-
-    return createSuccessResponse(`✅ Todo Deleted: "${result}"`);
-  }
-);
 
 
 
@@ -269,64 +248,7 @@ server.tool(
 
 
 
-/**
- * Tool: Delete a todo list
- */
-server.tool(
-  "delete-todo-list",
-  "Delete a todo list and all its todos",
-  {
-    id: z.string().uuid("Invalid TodoList ID"),
-  },
-  async ({ id }) => {
-    const result = await safeExecute(async () => {
-      const validatedData = DeleteTodoListSchema.parse({ id });
-      const todoList = await todoListService.getTodoList(validatedData.id);
-      
-      if (!todoList) {
-        throw new Error(`Todo list with ID ${id} not found`);
-      }
-      
-      const success = await todoListService.deleteTodoList(validatedData.id);
-      
-      if (!success) {
-        throw new Error(`Failed to delete todo list with ID ${id}`);
-      }
-      
-      return todoList.id;
-    }, "Failed to delete todo list");
 
-    if (result instanceof Error) {
-      return createErrorResponse(result.message);
-    }
-
-    return createSuccessResponse(`✅ Todo List Deleted: "${result}" (and all its todos)`);
-  }
-);
-
-/**
- * Tool: List todos by list ID
- */
-server.tool(
-  "list-todos-by-list",
-  "List all todos in a specific todo list",
-  {
-    listId: z.string().uuid("Invalid TodoList ID"),
-  },
-  async ({ listId }) => {
-    const result = await safeExecute(async () => {
-      const validatedData = ListTodosByListIdSchema.parse({ listId });
-      const todos = await todoService.getTodosByListId(validatedData.listId);
-      return formatTodoList(todos);
-    }, "Failed to list todos by list");
-
-    if (result instanceof Error) {
-      return createErrorResponse(result.message);
-    }
-
-    return createSuccessResponse(result);
-  }
-);
 
 
 /**
