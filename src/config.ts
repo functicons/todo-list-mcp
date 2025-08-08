@@ -14,19 +14,20 @@
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
+import { DataStoreType, DataStoreFactory } from './stores/DataStoreFactory.js';
 
 /**
- * Database configuration defaults
+ * Data store configuration defaults
  * 
- * We use the user's home directory for database storage by default,
+ * We use the user's home directory for data storage by default,
  * which provides several advantages:
  * - Works across different operating systems
  * - Available without special permissions
  * - Persists across application restarts
  * - Doesn't get deleted when updating the application
  */
-const DEFAULT_DB_FOLDER = path.join(os.homedir(), '.todo-list-mcp');
-const DEFAULT_DB_FILE = 'todos.sqlite';
+const DEFAULT_DATA_FOLDER = path.join(os.homedir(), '.todo-list-mcp');
+const DEFAULT_STORE_TYPE: DataStoreType = 'json'; // JSON is default for simplicity
 
 /**
  * Application configuration object
@@ -41,32 +42,44 @@ const DEFAULT_DB_FILE = 'todos.sqlite';
  * - Keeps sensitive information out of the code
  */
 export const config = {
-  db: {
+  dataStore: {
     // Allow overriding through environment variables
-    folder: process.env.TODO_DB_FOLDER || DEFAULT_DB_FOLDER,
-    filename: process.env.TODO_DB_FILE || DEFAULT_DB_FILE,
+    type: (process.env.TODO_STORE_TYPE as DataStoreType) || DEFAULT_STORE_TYPE,
+    folder: process.env.TODO_DATA_FOLDER || DEFAULT_DATA_FOLDER,
     
     /**
-     * Full path to the database file
+     * Full path to the data file
      * 
      * This getter computes the complete path dynamically,
-     * ensuring consistency even if the folder or filename change.
+     * including the appropriate file extension for the store type.
      */
     get path() {
-      return path.join(this.folder, this.filename);
+      const extension = DataStoreFactory.getDefaultExtension(this.type);
+      return path.join(this.folder, `todos${extension}`);
     }
   }
 };
 
 /**
- * Ensure the database folder exists
+ * Ensure the data folder exists
  * 
- * This utility function makes sure the folder for the database file exists,
+ * This utility function makes sure the folder for the data file exists,
  * creating it if necessary. This prevents errors when trying to open the
- * database file in a non-existent directory.
+ * data file in a non-existent directory.
  */
-export function ensureDbFolder() {
-  if (!fs.existsSync(config.db.folder)) {
-    fs.mkdirSync(config.db.folder, { recursive: true });
+export function ensureDataFolder() {
+  if (!fs.existsSync(config.dataStore.folder)) {
+    fs.mkdirSync(config.dataStore.folder, { recursive: true });
+  }
+}
+
+/**
+ * Validate configuration
+ * 
+ * Ensures that the configuration is valid and supported.
+ */
+export function validateConfig(): void {
+  if (!DataStoreFactory.isSupported(config.dataStore.type)) {
+    throw new Error(`Unsupported data store type: ${config.dataStore.type}. Supported types: json, sqlite`);
   }
 } 

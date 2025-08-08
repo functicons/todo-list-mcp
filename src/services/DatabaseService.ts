@@ -11,7 +11,7 @@
  * - Easy to install with minimal dependencies
  */
 import Database from 'better-sqlite3';
-import { config, ensureDbFolder } from '../config.js';
+import { config, ensureDataFolder } from '../config.js';
 
 /**
  * DatabaseService Class
@@ -29,10 +29,10 @@ class DatabaseService {
 
   constructor() {
     // Ensure the database folder exists before trying to create the database
-    ensureDbFolder();
+    ensureDataFolder();
     
-    // Initialize the database with the configured path
-    this.db = new Database(config.db.path);
+    // Initialize the database with the configured path  
+    this.db = new Database(config.dataStore.path);
     
     /**
      * Set pragmas for performance and safety:

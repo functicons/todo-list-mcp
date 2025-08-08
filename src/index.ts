@@ -40,7 +40,7 @@ import {
 // Import services
 import { todoService } from "./services/TodoService.js";
 import { todoListService } from "./services/TodoListService.js";
-import { databaseService } from "./services/DatabaseService.js";
+import { dataService } from "./services/DataService.js";
 
 // Import utilities
 import { createSuccessResponse, createErrorResponse, formatTodo, formatTodoList, formatTodoListInfo } from "./utils/formatters.js";
@@ -75,9 +75,9 @@ const server = new McpServer({
  * @param errorMessage The message to include if an error occurs
  * @returns Either the operation result or an Error
  */
-async function safeExecute<T>(operation: () => T, errorMessage: string) {
+async function safeExecute<T>(operation: () => T | Promise<T>, errorMessage: string): Promise<T | Error> {
   try {
-    const result = operation();
+    const result = await operation();
     return result;
   } catch (error) {
     console.error(errorMessage, error);
@@ -112,9 +112,9 @@ server.tool(
     description: z.string().min(1, "Description is required"),
   },
   async ({ listId, title, description }) => {
-    const result = await safeExecute(() => {
+    const result = await safeExecute(async () => {
       const validatedData = CreateTodoSchema.parse({ listId, title, description });
-      const newTodo = todoService.createTodo(validatedData);
+      const newTodo = await todoService.createTodo(validatedData);
       return formatTodo(newTodo);
     }, "Failed to create todo");
 
@@ -139,8 +139,8 @@ server.tool(
   "List all todos",
   {},
   async () => {
-    const result = await safeExecute(() => {
-      const todos = todoService.getAllTodos();
+    const result = await safeExecute(async () => {
+      const todos = await todoService.getAllTodos();
       return formatTodoList(todos);
     }, "Failed to list todos");
 
@@ -167,8 +167,8 @@ server.tool(
     id: z.string().uuid("Invalid Todo ID"),
   },
   async ({ id }) => {
-    const result = await safeExecute(() => {
-      const todo = todoService.getTodo(id);
+    const result = await safeExecute(async () => {
+      const todo = await todoService.getTodo(id);
       if (!todo) {
         throw new Error(`Todo with ID ${id} not found`);
       }
@@ -201,7 +201,7 @@ server.tool(
     description: z.string().min(1, "Description is required").optional(),
   },
   async ({ id, title, description }) => {
-    const result = await safeExecute(() => {
+    const result = await safeExecute(async () => {
       const validatedData = UpdateTodoSchema.parse({ id, title, description });
       
       // Ensure at least one field is being updated
@@ -209,7 +209,7 @@ server.tool(
         throw new Error("At least one field (title or description) must be provided");
       }
 
-      const updatedTodo = todoService.updateTodo(validatedData);
+      const updatedTodo = await todoService.updateTodo(validatedData);
       if (!updatedTodo) {
         throw new Error(`Todo with ID ${id} not found`);
       }
@@ -246,9 +246,9 @@ server.tool(
     id: z.string().uuid("Invalid Todo ID"),
   },
   async ({ id }) => {
-    const result = await safeExecute(() => {
+    const result = await safeExecute(async () => {
       const validatedData = CompleteTodoSchema.parse({ id });
-      const completedTodo = todoService.completeTodo(validatedData.id);
+      const completedTodo = await todoService.completeTodo(validatedData.id);
       
       if (!completedTodo) {
         throw new Error(`Todo with ID ${id} not found`);
@@ -281,15 +281,15 @@ server.tool(
     id: z.string().uuid("Invalid Todo ID"),
   },
   async ({ id }) => {
-    const result = await safeExecute(() => {
+    const result = await safeExecute(async () => {
       const validatedData = DeleteTodoSchema.parse({ id });
-      const todo = todoService.getTodo(validatedData.id);
+      const todo = await todoService.getTodo(validatedData.id);
       
       if (!todo) {
         throw new Error(`Todo with ID ${id} not found`);
       }
       
-      const success = todoService.deleteTodo(validatedData.id);
+      const success = await todoService.deleteTodo(validatedData.id);
       
       if (!success) {
         throw new Error(`Failed to delete todo with ID ${id}`);
@@ -326,9 +326,9 @@ server.tool(
     title: z.string().min(1, "Search term is required"),
   },
   async ({ title }) => {
-    const result = await safeExecute(() => {
+    const result = await safeExecute(async () => {
       const validatedData = SearchTodosByTitleSchema.parse({ title });
-      const todos = todoService.searchByTitle(validatedData.title);
+      const todos = await todoService.searchByTitle(validatedData.title);
       return formatTodoList(todos);
     }, "Failed to search todos");
 
@@ -360,9 +360,9 @@ server.tool(
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
   },
   async ({ date }) => {
-    const result = await safeExecute(() => {
+    const result = await safeExecute(async () => {
       const validatedData = SearchTodosByDateSchema.parse({ date });
-      const todos = todoService.searchByDate(validatedData.date);
+      const todos = await todoService.searchByDate(validatedData.date);
       return formatTodoList(todos);
     }, "Failed to search todos by date");
 
@@ -391,8 +391,8 @@ server.tool(
   "List all non-completed todos",
   {},
   async () => {
-    const result = await safeExecute(() => {
-      const todos = todoService.getActiveTodos();
+    const result = await safeExecute(async () => {
+      const todos = await todoService.getActiveTodos();
       return formatTodoList(todos);
     }, "Failed to list active todos");
 
@@ -422,8 +422,8 @@ server.tool(
   "Generate a summary of all active (non-completed) todos",
   {},
   async () => {
-    const result = await safeExecute(() => {
-      return todoService.summarizeActiveTodos();
+    const result = await safeExecute(async () => {
+      return await todoService.summarizeActiveTodos();
     }, "Failed to summarize active todos");
 
     if (result instanceof Error) {
@@ -449,9 +449,9 @@ server.tool(
     description: z.string().min(1, "Description is required"),
   },
   async ({ name, description }) => {
-    const result = await safeExecute(() => {
+    const result = await safeExecute(async () => {
       const validatedData = CreateTodoListSchema.parse({ name, description });
-      const newTodoList = todoListService.createTodoList(validatedData);
+      const newTodoList = await todoListService.createTodoList(validatedData);
       return formatTodoListInfo(newTodoList);
     }, "Failed to create todo list");
 
@@ -475,15 +475,15 @@ server.tool(
     id: z.string().uuid("Invalid TodoList ID"),
   },
   async ({ id }) => {
-    const result = await safeExecute(() => {
+    const result = await safeExecute(async () => {
       const validatedData = DeleteTodoListSchema.parse({ id });
-      const todoList = todoListService.getTodoList(validatedData.id);
+      const todoList = await todoListService.getTodoList(validatedData.id);
       
       if (!todoList) {
         throw new Error(`Todo list with ID ${id} not found`);
       }
       
-      const success = todoListService.deleteTodoList(validatedData.id);
+      const success = await todoListService.deleteTodoList(validatedData.id);
       
       if (!success) {
         throw new Error(`Failed to delete todo list with ID ${id}`);
@@ -510,9 +510,9 @@ server.tool(
     listId: z.string().uuid("Invalid TodoList ID"),
   },
   async ({ listId }) => {
-    const result = await safeExecute(() => {
+    const result = await safeExecute(async () => {
       const validatedData = ListTodosByListIdSchema.parse({ listId });
-      const todos = todoService.getTodosByListId(validatedData.listId);
+      const todos = await todoService.getTodosByListId(validatedData.listId);
       return formatTodoList(todos);
     }, "Failed to list todos by list");
 
@@ -541,26 +541,27 @@ server.tool(
  */
 async function main() {
   console.error("Starting Todo MCP Server...");
-  console.error(`SQLite database path: ${config.db.path}`);
+  console.error(`Data store: ${config.dataStore.type} at ${config.dataStore.path}`);
   
   try {
-    // Database is automatically initialized when the service is imported
+    // Initialize the data service
+    await dataService.initialize();
     
     /**
-     * Set up graceful shutdown to close the database
+     * Set up graceful shutdown to close the data store
      * 
      * This ensures data is properly saved when the server is stopped.
      * Both SIGINT (Ctrl+C) and SIGTERM (kill command) are handled.
      */
-    process.on('SIGINT', () => {
+    process.on('SIGINT', async () => {
       console.error('Shutting down...');
-      databaseService.close();
+      await dataService.close();
       process.exit(0);
     });
     
-    process.on('SIGTERM', () => {
+    process.on('SIGTERM', async () => {
       console.error('Shutting down...');
-      databaseService.close();
+      await dataService.close();
       process.exit(0);
     });
     
@@ -576,7 +577,7 @@ async function main() {
     console.error("Todo MCP Server running on stdio transport");
   } catch (error) {
     console.error("Failed to start Todo MCP Server:", error);
-    databaseService.close();
+    await dataService.close();
     process.exit(1);
   }
 }
