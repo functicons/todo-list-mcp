@@ -17,10 +17,7 @@ A Model Context Protocol (MCP) server that provides todo list management with mu
 git clone https://github.com/RegiByte/todo-list-mcp.git
 cd todo-list-mcp
 
-# Install dependencies
-npm install
-
-# Build the project
+# Build the project (automatically installs dependencies if needed)
 npm run build
 ```
 
