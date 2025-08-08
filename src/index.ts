@@ -237,65 +237,7 @@ server.tool(
   }
 );
 
-/**
- * Tool 7: List active todos
- * 
- * This tool:
- * 1. Retrieves all non-completed todos
- * 2. Returns a formatted list of active todos
- * 
- * WHY SEPARATE FROM LIST ALL?
- * - Active todos are typically what users most often want to see
- * - Reduces noise by filtering out completed items
- * - Provides a clearer view of outstanding work
- */
-server.tool(
-  "list-active-todos",
-  "List all non-completed todos",
-  {},
-  async () => {
-    const result = await safeExecute(async () => {
-      const todos = await todoService.getActiveTodos();
-      return formatTodoList(todos);
-    }, "Failed to list active todos");
 
-    if (result instanceof Error) {
-      return createErrorResponse(result.message);
-    }
-
-    return createSuccessResponse(result);
-  }
-);
-
-/**
- * Tool 8: Summarize active todos
- * 
- * This tool:
- * 1. Generates a summary of all active todos
- * 2. Returns a formatted markdown summary
- * 
- * WHY HAVE A SUMMARY?
- * - Provides a quick overview without details
- * - Perfect for a quick status check
- * - Easier to read than a full list when there are many todos
- * - Particularly useful for LLM interfaces where conciseness matters
- */
-server.tool(
-  "summarize-active-todos",
-  "Generate a summary of all active (non-completed) todos",
-  {},
-  async () => {
-    const result = await safeExecute(async () => {
-      return await todoService.summarizeActiveTodos();
-    }, "Failed to summarize active todos");
-
-    if (result instanceof Error) {
-      return createErrorResponse(result.message);
-    }
-
-    return createSuccessResponse(result);
-  }
-);
 
 /**
  * TodoList Management Tools
