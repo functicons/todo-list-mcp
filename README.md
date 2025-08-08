@@ -1,36 +1,14 @@
 # Todo List MCP Server
 
-A Model Context Protocol (MCP) server that provides a comprehensive API for managing todo items.
-
-<a href="https://glama.ai/mcp/servers/kh39rjpplx">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/kh39rjpplx/badge" alt="Todo List Server MCP server" />
-</a>
-
-> **📚 Learning Resource**: This project is designed as an educational example of MCP implementation. See [GUIDE.md](GUIDE.md) for a comprehensive explanation of how the project works and why things are implemented the way they are.
+A Model Context Protocol (MCP) server that provides todo list management with multiple lists and session isolation.
 
 ## Features
 
-- **Create todos**: Add new tasks with title and markdown description
-- **Update todos**: Modify existing tasks
-- **Complete todos**: Mark tasks as done
-- **Delete todos**: Remove tasks from the list
-- **Search todos**: Find tasks by title or creation date
-- **Summarize todos**: Get a quick overview of active tasks
-
-## Tools
-
-This MCP server exposes the following tools:
-
-1. `create-todo`: Create a new todo item
-2. `list-todos`: List all todos
-3. `get-todo`: Get a specific todo by ID
-4. `update-todo`: Update a todo's title or description
-5. `complete-todo`: Mark a todo as completed
-6. `delete-todo`: Delete a todo
-7. `search-todos-by-title`: Search todos by title (case-insensitive partial match)
-8. `search-todos-by-date`: Search todos by creation date (format: YYYY-MM-DD)
-9. `list-active-todos`: List all non-completed todos
-10. `summarize-active-todos`: Generate a summary of all active (non-completed) todos
+- **Multiple Todo Lists**: Create and manage separate todo lists
+- **Session Isolation**: Each AI client gets its own private todo lists
+- **Flexible Storage**: Choose between JSON files or SQLite database
+- **Rich Todo Management**: Create, update, complete, search, and organize tasks
+- **Markdown Support**: Full markdown formatting in todo descriptions
 
 ## Installation
 
@@ -46,83 +24,144 @@ npm install
 npm run build
 ```
 
-## Usage
+## Configuration
 
-### Starting the Server
+### Claude Code
 
-```bash
-npm start
-```
-
-### Configuring with Claude for Desktop
-
-#### Claude Desktop
-
-Add this to your `claude_desktop_config.json`:
+Add this to your `~/.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
-    "todo": {
+    "todo-list": {
       "command": "node",
-      "args": ["/absolute/path/to/todo-list-mcp/dist/index.js"]
+      "args": ["/absolute/path/to/todo-list-mcp/dist/src/index.js"]
     }
   }
 }
 ```
 
-#### Cursor
+### Gemini CLI
 
-- Go to "Cursor Settings" -> MCP
-- Add a new MCP server with a "command" type
-- Add the absolute path of the server and run it with node
-- Example: node /absolute/path/to/todo-list-mcp/dist/index.js
+Add this to your `~/.gemini/settings.json`:
 
-### Example Commands
+```json
+{
+  "mcpServers": {
+    "todo-list": {
+      "command": "node",
+      "args": ["/absolute/path/to/todo-list-mcp/dist/src/index.js"]
+    }
+  }
+}
+```
 
-When using with Claude for Desktop or Cursor, you can try:
+### Storage Options
 
-- "Create a todo to learn MCP with a description explaining why MCP is useful"
-- "List all my active todos"
-- "Create a todo for tomorrow's meeting with details about the agenda in markdown"
-- "Mark my learning MCP todo as completed"
+The server automatically uses JSON file storage by default. To use SQLite instead:
+
+```json
+{
+  "mcpServers": {
+    "todo-list": {
+      "command": "node",
+      "args": ["/absolute/path/to/todo-list-mcp/dist/src/index.js"],
+      "env": {
+        "TODO_DATA_STORE": "sqlite"
+      }
+    }
+  }
+}
+```
+
+## Usage Examples
+
+Once configured with your AI client, try these commands:
+
+### Getting Started
+- "Create a new todo list called 'Work Projects'"
+- "Add a todo to my work list: prepare quarterly presentation"
+- "List all my todo lists"
+
+### Managing Tasks
+- "Show me all todos in my work projects list"
+- "Mark the presentation todo as completed"
+- "Update my presentation todo to include slide design"
+- "Create a high-priority todo for the client meeting tomorrow"
+
+### Organization & Search
 - "Summarize all my active todos"
+- "Search for todos containing 'meeting'"
+- "Show me all uncompleted tasks"
+- "List todos I created today"
 
-## Project Structure
+### Multiple Lists
+- "Create a personal todo list for weekend activities"
+- "Move my gym todo from work list to personal list" (by recreating)
+- "Delete my old project list and all its todos"
 
-This project follows a clear separation of concerns to make the code easy to understand:
+## Available Tools
 
-```
-src/
-├── models/       # Data structures and validation schemas
-├── services/     # Business logic and database operations
-├── utils/        # Helper functions and formatters
-├── config.ts     # Configuration settings
-├── client.ts     # Test client for local testing
-└── index.ts      # Main entry point with MCP tool definitions
-```
+The server provides these tools for AI clients:
 
-## Learning from This Project
+**Todo Management:**
+- Create, update, complete, and delete todos
+- Search todos by title or date
+- List active (incomplete) todos
+- Get todo summaries
 
-This project is designed as an educational resource. To get the most out of it:
+**List Management:**
+- Create and delete todo lists
+- List todos within specific lists
+- Organize todos across multiple lists
 
-1. Read the [GUIDE.md](GUIDE.md) for a comprehensive explanation of the design
-2. Study the heavily commented source code to understand implementation details
-3. Use the test client to see how the server works in practice
-4. Experiment with adding your own tools or extending the existing ones
+**Data & Search:**
+- Full-text search across all todos
+- Date-based filtering
+- Completion status filtering
+
+## Data Storage
+
+Your todo data is stored locally:
+
+- **JSON format**: `~/.todo-list-mcp/todos.json` (human-readable)
+- **SQLite format**: `~/.todo-list-mcp/todos.sqlite` (better for large datasets)
+
+## Privacy & Security
+
+- **Local storage only**: All data stays on your machine
+- **Session isolation**: Each AI client sees only its own todo lists
+- **No network communication**: Server runs entirely offline
+
+## Troubleshooting
+
+### Server won't start
+- Ensure Node.js is installed and accessible
+- Verify the absolute path in your configuration
+- Check that the build completed successfully (`npm run build`)
+
+### Can't see todos in AI client
+- Restart your AI client after configuration changes
+- Verify the MCP server appears in your client's server list
+- Create a new todo list first - the server starts empty
+
+### Performance with many todos
+- Consider switching to SQLite storage for better performance
+- Use specific list queries instead of listing all todos
 
 ## Development
 
-### Building
+For developers wanting to extend or contribute:
 
 ```bash
-npm run build
-```
-
-### Running in Development Mode
-
-```bash
+# Run in development mode
 npm run dev
+
+# Run tests
+npm run test:integration
+
+# Test the client
+npm run test-client
 ```
 
 ## License
