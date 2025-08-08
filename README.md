@@ -277,9 +277,27 @@ npm run test-client
 
 # Debug SQLite database contents
 npm run dump-sqlite
+
+# Launch MCP Inspector for interactive debugging
+npm run inspect
 ```
 
 ### Debugging
+
+**MCP Inspector (Interactive Debugging):**
+```bash
+# Launch web-based MCP inspector
+npm run inspect
+
+# Or specify custom server path
+./scripts/inspect-mcp-server.sh /path/to/server.js
+```
+
+The MCP Inspector provides:
+- Web-based interface for testing all MCP tools
+- Interactive parameter input and response viewing
+- Real-time server communication debugging
+- Tool schema and validation inspection
 
 **SQLite Database Inspection:**
 ```bash
