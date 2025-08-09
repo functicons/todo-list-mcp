@@ -6,7 +6,7 @@
  * supports complex queries and relationships.
  */
 import Database from 'better-sqlite3';
-import { dirname } from 'path';
+import { dirname, join, basename } from 'path';
 import { promises as fs } from 'fs';
 import { Todo } from '../models/Todo.js';
 import { TodoList } from '../models/TodoList.js';
@@ -29,7 +29,10 @@ export class SqliteDataStore implements DataStore {
   private dbPath: string;
 
   constructor(dbPath: string) {
-    this.dbPath = dbPath;
+    // Ensure SQLite files go into data/sqlite subdirectory
+    const basePath = dirname(dbPath);
+    const dbName = basename(dbPath);
+    this.dbPath = join(basePath, 'data', 'sqlite', dbName);
   }
 
   /**

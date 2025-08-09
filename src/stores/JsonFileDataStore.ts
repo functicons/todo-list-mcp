@@ -6,7 +6,8 @@
  * concurrency control to prevent race conditions.
  */
 import { promises as fs } from 'fs';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
+import * as path from 'path';
 import { Mutex } from 'async-mutex';
 import lockfile from 'proper-lockfile';
 import { Todo } from '../models/Todo.js';
@@ -20,10 +21,10 @@ import {
 } from '../exceptions/DataStoreExceptions.js';
 
 /**
- * Data structure for JSON file storage
+ * Data structure for individual todo list JSON file
  */
-interface JsonData {
-  todoLists: TodoList[];
+interface TodoListData {
+  todoList: TodoList;
   todos: Todo[];
   version: string;
 }
@@ -35,89 +36,33 @@ interface JsonData {
  * Uses file locking and operation-level mutexes to prevent race conditions.
  */
 export class JsonFileDataStore implements DataStore {
-  private filePath: string;
-  private data: JsonData;
+  private basePath: string;
+  private jsonDir: string;
   private operationMutex: Mutex;
-  private lockfilePath: string;
+  private todoListCache: Map<string, TodoList>;
 
   constructor(filePath: string) {
-    this.filePath = filePath;
-    this.lockfilePath = filePath + '.lock';
+    // filePath points to the old single JSON file location
+    // We'll use its directory as the base path
+    this.basePath = dirname(filePath);
+    this.jsonDir = path.join(this.basePath, 'data', 'json');
     this.operationMutex = new Mutex();
-    this.data = {
-      todoLists: [],
-      todos: [],
-      version: '2.0.0' // New version with seqno
-    };
+    this.todoListCache = new Map();
   }
 
   /**
    * Initialize the JSON file data store with proper file locking
-   * Creates the file and directory structure if they don't exist
+   * Creates the json directory structure if it doesn't exist
    */
   async initialize(): Promise<void> {
     return this.operationMutex.runExclusive(async () => {
       try {
-        // Ensure the directory exists
-        const dir = dirname(this.filePath);
-        await fs.mkdir(dir, { recursive: true });
-
-        // Try to acquire file lock and load existing data
-        try {
-          const fileContent = await this.withFileLock(async () => {
-            return await fs.readFile(this.filePath, 'utf-8');
-          });
-          
-          try {
-            this.data = JSON.parse(fileContent);
-          } catch (parseError) {
-            throw new DataValidationException(
-              `Invalid JSON format in data file: ${parseError instanceof Error ? parseError.message : parseError}`,
-              'file_content',
-              fileContent.substring(0, 100) + '...'
-            );
-          }
-          
-          // Handle migration if needed
-          if (!this.data.version || this.data.version < '2.0.0') {
-            if (this.data.todos && this.data.todos.length > 0 && 'id' in this.data.todos[0]) {
-              throw new DataValidationException(
-                'Incompatible data schema: todos have "id" field instead of "seqno". Manual migration required.',
-                'todos schema v1',
-                'todos schema v2'
-              );
-            }
-            this.data.version = '2.0.0';
-          }
-          
-          // Ensure required arrays exist
-          if (!this.data.todoLists) {
-            this.data.todoLists = [];
-          }
-          if (!this.data.todos) {
-            this.data.todos = [];
-          }
-        } catch (error) {
-          if (error instanceof DataValidationException) {
-            throw error;
-          }
-          
-          // File doesn't exist, start with empty data
-          if ((error as any).code === 'ENOENT') {
-            await this.saveDataInternal();
-          } else {
-            throw new FileOperationException(
-              `Failed to read data file: ${error instanceof Error ? error.message : error}`,
-              'READ',
-              this.filePath,
-              error instanceof Error ? error : undefined
-            );
-          }
-        }
+        // Ensure the json directory exists
+        await fs.mkdir(this.jsonDir, { recursive: true });
+        
+        // Load all existing todo lists
+        await this.loadAllTodoLists();
       } catch (error) {
-        if (error instanceof DataValidationException || error instanceof FileOperationException) {
-          throw error;
-        }
         throw new DataStoreInitializationException(
           `Failed to initialize JSON file data store: ${error instanceof Error ? error.message : error}`,
           error instanceof Error ? error : undefined
@@ -127,19 +72,54 @@ export class JsonFileDataStore implements DataStore {
   }
 
   /**
-   * Close the data store (saves any pending changes)
+   * Close the data store
    */
   async close(): Promise<void> {
-    await this.saveData();
+    // Nothing to do for file-based storage
+  }
+
+  /**
+   * Get the file path for a todo list
+   */
+  private getTodoListFilePath(listId: string): string {
+    return path.join(this.jsonDir, `todo-list-${listId}.json`);
+  }
+
+  /**
+   * Load all todo lists from the json directory
+   */
+  private async loadAllTodoLists(): Promise<void> {
+    try {
+      const files = await fs.readdir(this.jsonDir);
+      const todoListFiles = files.filter(f => f.startsWith('todo-list-') && f.endsWith('.json'));
+      
+      for (const file of todoListFiles) {
+        const listId = file.replace('todo-list-', '').replace('.json', '');
+        const filePath = path.join(this.jsonDir, file);
+        try {
+          const content = await fs.readFile(filePath, 'utf-8');
+          const data: TodoListData = JSON.parse(content);
+          this.todoListCache.set(listId, data.todoList);
+        } catch (error) {
+          // Skip invalid files
+          console.error(`Failed to load ${file}: ${error}`);
+        }
+      }
+    } catch (error) {
+      if ((error as any).code !== 'ENOENT') {
+        throw error;
+      }
+      // Directory doesn't exist yet, that's OK
+    }
   }
 
   /**
    * Execute operation with file locking to prevent concurrent access
    */
-  private async withFileLock<T>(operation: () => Promise<T>): Promise<T> {
+  private async withFileLock<T>(filePath: string, operation: () => Promise<T>): Promise<T> {
     let release: (() => Promise<void>) | undefined;
     try {
-      release = await lockfile.lock(this.filePath, {
+      release = await lockfile.lock(filePath, {
         retries: {
           retries: 5,
           factor: 2,
@@ -152,7 +132,7 @@ export class JsonFileDataStore implements DataStore {
       throw new FileOperationException(
         `Failed to acquire file lock: ${error instanceof Error ? error.message : error}`,
         'LOCK',
-        this.filePath,
+        filePath,
         error instanceof Error ? error : undefined
       );
     } finally {
@@ -163,150 +143,170 @@ export class JsonFileDataStore implements DataStore {
   }
 
   /**
-   * Internal save method (assumes caller handles locking)
+   * Save a todo list and its todos to a separate JSON file
    */
-  private async saveDataInternal(): Promise<void> {
+  private async saveTodoListData(listId: string, todoList: TodoList, todos: Todo[]): Promise<void> {
+    const filePath = this.getTodoListFilePath(listId);
+    const data: TodoListData = {
+      todoList,
+      todos: todos.sort((a, b) => a.seqno - b.seqno),
+      version: '2.0.0'
+    };
+    
     try {
-      const tempPath = this.filePath + '.tmp';
-      const dataString = JSON.stringify(this.data, null, 2);
-      await fs.writeFile(tempPath, dataString, 'utf-8');
-      await fs.rename(tempPath, this.filePath);
+      // Ensure the file exists for locking (create empty file if it doesn't exist)
+      try {
+        await fs.access(filePath);
+      } catch {
+        await fs.writeFile(filePath, '{}', 'utf-8');
+      }
+      
+      await this.withFileLock(filePath, async () => {
+        const tempPath = filePath + '.tmp';
+        const dataString = JSON.stringify(data, null, 2);
+        await fs.writeFile(tempPath, dataString, 'utf-8');
+        await fs.rename(tempPath, filePath);
+      });
     } catch (error) {
       throw new FileOperationException(
-        `Failed to save data: ${error instanceof Error ? error.message : error}`,
+        `Failed to save todo list data: ${error instanceof Error ? error.message : error}`,
         'WRITE',
-        this.filePath,
+        filePath,
         error instanceof Error ? error : undefined
       );
     }
   }
 
   /**
-   * Save data to JSON file with proper locking
+   * Load todo list data from file
    */
-  private async saveData(): Promise<void> {
-    await this.withFileLock(async () => {
-      await this.saveDataInternal();
-    });
+  private async loadTodoListData(listId: string): Promise<TodoListData | undefined> {
+    const filePath = this.getTodoListFilePath(listId);
+    
+    try {
+      const content = await this.withFileLock(filePath, async () => {
+        return await fs.readFile(filePath, 'utf-8');
+      });
+      return JSON.parse(content);
+    } catch (error) {
+      if ((error as any).code === 'ENOENT') {
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   // TodoList operations
 
   async createTodoList(todoList: TodoList): Promise<TodoList> {
     return this.operationMutex.runExclusive(async () => {
-      // Reload data to ensure we have the latest state
-      await this.reloadData();
-      
       // Check for duplicate ID
-      if (this.data.todoLists.some(list => list.id === todoList.id)) {
+      if (this.todoListCache.has(todoList.id)) {
         throw new ConstraintViolationException(
           `TodoList with ID '${todoList.id}' already exists`,
           'UNIQUE'
         );
       }
       
-      this.data.todoLists.push(todoList);
-      await this.saveData();
+      // Save the new todo list with empty todos
+      await this.saveTodoListData(todoList.id, todoList, []);
+      this.todoListCache.set(todoList.id, todoList);
       return todoList;
     });
   }
 
   async getTodoList(id: string): Promise<TodoList | undefined> {
     return this.operationMutex.runExclusive(async () => {
-      await this.reloadData();
-      return this.data.todoLists.find(list => list.id === id);
+      return this.todoListCache.get(id);
     });
   }
 
   async getAllTodoLists(): Promise<TodoList[]> {
     return this.operationMutex.runExclusive(async () => {
-      await this.reloadData();
-      return [...this.data.todoLists];
+      return Array.from(this.todoListCache.values());
     });
   }
 
   async updateTodoList(id: string, updates: Partial<Omit<TodoList, 'id'>>): Promise<TodoList | undefined> {
     return this.operationMutex.runExclusive(async () => {
-      await this.reloadData();
       // Since TodoList only has id field, just verify it exists and return it
-      return this.data.todoLists.find(list => list.id === id);
+      return this.todoListCache.get(id);
     });
   }
 
   async deleteTodoList(id: string): Promise<boolean> {
     return this.operationMutex.runExclusive(async () => {
-      await this.reloadData();
-      
-      const initialLength = this.data.todoLists.length;
-      this.data.todoLists = this.data.todoLists.filter(list => list.id !== id);
-      
-      // Also delete all todos in this list
-      this.data.todos = this.data.todos.filter(todo => todo.listId !== id);
-      
-      const wasDeleted = this.data.todoLists.length < initialLength;
-      if (wasDeleted) {
-        await this.saveData();
+      if (!this.todoListCache.has(id)) {
+        return false;
       }
-      return wasDeleted;
+      
+      // Delete the file
+      const filePath = this.getTodoListFilePath(id);
+      try {
+        await fs.unlink(filePath);
+      } catch (error) {
+        if ((error as any).code !== 'ENOENT') {
+          throw error;
+        }
+      }
+      
+      // Remove from cache
+      this.todoListCache.delete(id);
+      return true;
     });
   }
 
-  /**
-   * Reload data from file to ensure we have the latest state
-   */
-  private async reloadData(): Promise<void> {
-    try {
-      const fileContent = await this.withFileLock(async () => {
-        return await fs.readFile(this.filePath, 'utf-8');
-      });
-      this.data = JSON.parse(fileContent);
-    } catch (error) {
-      // If file doesn't exist or can't be read, keep current data
-      if ((error as any).code !== 'ENOENT') {
-        throw error;
-      }
-    }
-  }
 
   // Todo operations
 
   async createTodo(todo: Todo): Promise<Todo> {
     return this.operationMutex.runExclusive(async () => {
-      await this.reloadData();
-      
-      // Check for duplicate (listId, seqno)
-      if (this.data.todos.some(t => t.listId === todo.listId && t.seqno === todo.seqno)) {
-        throw new ConstraintViolationException(
-          `Todo with listId '${todo.listId}' and seqno '${todo.seqno}' already exists`,
-          'UNIQUE'
-        );
-      }
-      
       // Check that the referenced TodoList exists
-      if (!this.data.todoLists.some(list => list.id === todo.listId)) {
+      if (!this.todoListCache.has(todo.listId)) {
         throw new ConstraintViolationException(
           `TodoList with ID '${todo.listId}' does not exist`,
           'FOREIGN_KEY'
         );
       }
       
-      this.data.todos.push(todo);
-      await this.saveData();
+      // Load existing todos for this list
+      const data = await this.loadTodoListData(todo.listId);
+      const todos = data?.todos || [];
+      
+      // Check for duplicate (listId, seqno)
+      if (todos.some(t => t.seqno === todo.seqno)) {
+        throw new ConstraintViolationException(
+          `Todo with listId '${todo.listId}' and seqno '${todo.seqno}' already exists`,
+          'UNIQUE'
+        );
+      }
+      
+      // Add the new todo and save
+      todos.push(todo);
+      await this.saveTodoListData(todo.listId, this.todoListCache.get(todo.listId)!, todos);
       return todo;
     });
   }
 
   async getTodo(listId: string, seqno: number): Promise<Todo | undefined> {
     return this.operationMutex.runExclusive(async () => {
-      await this.reloadData();
-      return this.data.todos.find(todo => todo.listId === listId && todo.seqno === seqno);
+      const data = await this.loadTodoListData(listId);
+      return data?.todos.find(todo => todo.seqno === seqno);
     });
   }
 
   async getAllTodos(): Promise<Todo[]> {
     return this.operationMutex.runExclusive(async () => {
-      await this.reloadData();
-      return [...this.data.todos].sort((a, b) => {
+      const allTodos: Todo[] = [];
+      
+      for (const listId of this.todoListCache.keys()) {
+        const data = await this.loadTodoListData(listId);
+        if (data?.todos) {
+          allTodos.push(...data.todos);
+        }
+      }
+      
+      return allTodos.sort((a, b) => {
         if (a.listId < b.listId) return -1;
         if (a.listId > b.listId) return 1;
         return a.seqno - b.seqno;
@@ -316,21 +316,20 @@ export class JsonFileDataStore implements DataStore {
 
   async getTodosByListId(listId: string): Promise<Todo[]> {
     return this.operationMutex.runExclusive(async () => {
-      await this.reloadData();
-      return this.data.todos
-        .filter(todo => todo.listId === listId)
-        .sort((a, b) => a.seqno - b.seqno);
+      const data = await this.loadTodoListData(listId);
+      return data?.todos.sort((a, b) => a.seqno - b.seqno) || [];
     });
   }
 
   async updateTodo(listId: string, seqno: number, updates: Partial<Omit<Todo, 'listId' | 'seqno'>>): Promise<Todo | undefined> {
     return this.operationMutex.runExclusive(async () => {
-      await this.reloadData();
+      const data = await this.loadTodoListData(listId);
+      if (!data) return undefined;
       
-      const index = this.data.todos.findIndex(todo => todo.listId === listId && todo.seqno === seqno);
+      const index = data.todos.findIndex(todo => todo.seqno === seqno);
       if (index === -1) return undefined;
 
-      const existing = this.data.todos[index];
+      const existing = data.todos[index];
       const updated = {
         ...existing,
         ...updates,
@@ -338,22 +337,23 @@ export class JsonFileDataStore implements DataStore {
         seqno: existing.seqno,
       };
 
-      this.data.todos[index] = updated;
-      await this.saveData();
+      data.todos[index] = updated;
+      await this.saveTodoListData(listId, this.todoListCache.get(listId)!, data.todos);
       return updated;
     });
   }
 
   async deleteTodo(listId: string, seqno: number): Promise<boolean> {
     return this.operationMutex.runExclusive(async () => {
-      await this.reloadData();
+      const data = await this.loadTodoListData(listId);
+      if (!data) return false;
       
-      const initialLength = this.data.todos.length;
-      this.data.todos = this.data.todos.filter(todo => !(todo.listId === listId && todo.seqno === seqno));
+      const initialLength = data.todos.length;
+      data.todos = data.todos.filter(todo => todo.seqno !== seqno);
       
-      const wasDeleted = this.data.todos.length < initialLength;
+      const wasDeleted = data.todos.length < initialLength;
       if (wasDeleted) {
-        await this.saveData();
+        await this.saveTodoListData(listId, this.todoListCache.get(listId)!, data.todos);
       }
       return wasDeleted;
     });
@@ -363,21 +363,29 @@ export class JsonFileDataStore implements DataStore {
 
   async searchTodosByTitle(title: string): Promise<Todo[]> {
     return this.operationMutex.runExclusive(async () => {
-      await this.reloadData();
       const searchTerm = title.toLowerCase();
-      return this.data.todos
-        .filter(todo => todo.title.toLowerCase().includes(searchTerm))
-        .sort((a, b) => {
-          if (a.listId < b.listId) return -1;
-          if (a.listId > b.listId) return 1;
-          return a.seqno - b.seqno;
-        });
+      const matchingTodos: Todo[] = [];
+      
+      for (const listId of this.todoListCache.keys()) {
+        const data = await this.loadTodoListData(listId);
+        if (data?.todos) {
+          const matches = data.todos.filter(todo => 
+            todo.title.toLowerCase().includes(searchTerm)
+          );
+          matchingTodos.push(...matches);
+        }
+      }
+      
+      return matchingTodos.sort((a, b) => {
+        if (a.listId < b.listId) return -1;
+        if (a.listId > b.listId) return 1;
+        return a.seqno - b.seqno;
+      });
     });
   }
 
   async searchTodosByDate(dateStr: string): Promise<Todo[]> {
     return this.operationMutex.runExclusive(async () => {
-      await this.reloadData();
       // Since there are no timestamp fields anymore, return empty array
       return [];
     });
