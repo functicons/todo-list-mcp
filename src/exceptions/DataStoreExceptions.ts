@@ -48,7 +48,7 @@ export class IncompatibleSchemaException extends DataStoreException {
 export class FileOperationException extends DataStoreException {
   constructor(
     message: string,
-    public readonly operation: 'READ' | 'WRITE' | 'DELETE' | 'CREATE',
+    public readonly operation: 'READ' | 'WRITE' | 'DELETE' | 'CREATE' | 'LOCK',
     public readonly filePath: string,
     public readonly cause?: Error
   ) {

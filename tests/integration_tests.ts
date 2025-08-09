@@ -133,6 +133,115 @@ async function runAllTests() {
         await store.close();
       }
     });
+
+    test('Race condition protection: Multiple concurrent modifications', async () => {
+      const store = await TestUtils.createJsonStore();
+      try {
+        const todoList = TestUtils.createSampleTodoList();
+        await store.createTodoList(todoList);
+        
+        // Create initial todos concurrently
+        const initialTodos = Array.from({ length: 10 }, (_, i) => {
+          return store.createTodo(TestUtils.createSampleTodo(todoList.id, i + 1, {
+            title: `Initial Todo ${i + 1}` 
+          }));
+        });
+        
+        await Promise.all(initialTodos);
+        
+        // Now perform mixed operations concurrently:
+        // - Updates to existing todos
+        // - Deletions
+        // - New creations
+        // - Reads
+        const operations = [
+          // Update existing todos
+          store.updateTodo(todoList.id, 1, { status: 'done' }),
+          store.updateTodo(todoList.id, 2, { status: 'canceled' }),
+          store.updateTodo(todoList.id, 3, { status: 'done' }),
+          
+          // Delete some todos
+          store.deleteTodo(todoList.id, 4),
+          store.deleteTodo(todoList.id, 5),
+          
+          // Create new todos with higher seqno
+          store.createTodo(TestUtils.createSampleTodo(todoList.id, 11, { title: 'New Todo 11' })),
+          store.createTodo(TestUtils.createSampleTodo(todoList.id, 12, { title: 'New Todo 12' })),
+          
+          // Concurrent reads
+          store.getAllTodos(),
+          store.getTodosByListId(todoList.id),
+          store.getTodo(todoList.id, 6),
+        ];
+        
+        // All operations should complete without race conditions
+        const results = await Promise.all(operations);
+        
+        // Verify final state
+        const finalTodos = await store.getTodosByListId(todoList.id);
+        
+        // Should have: 10 initial - 2 deleted + 2 new = 10 todos
+        TodoAssertions.assertArrayLength(finalTodos, 10, 'Concurrent operations should maintain data integrity');
+        
+        // Verify specific updates happened
+        const todo1 = await store.getTodo(todoList.id, 1);
+        assert(todo1?.status === 'done', 'Todo 1 should be marked as done');
+        
+        const todo2 = await store.getTodo(todoList.id, 2);
+        assert(todo2?.status === 'canceled', 'Todo 2 should be marked as canceled');
+        
+        // Verify deletions happened
+        const deletedTodo4 = await store.getTodo(todoList.id, 4);
+        assert(deletedTodo4 === undefined, 'Todo 4 should be deleted');
+        
+        const deletedTodo5 = await store.getTodo(todoList.id, 5);
+        assert(deletedTodo5 === undefined, 'Todo 5 should be deleted');
+        
+        // Verify new todos were created
+        const newTodo11 = await store.getTodo(todoList.id, 11);
+        assert(newTodo11?.title === 'New Todo 11', 'New todo 11 should exist');
+        
+        const newTodo12 = await store.getTodo(todoList.id, 12);
+        assert(newTodo12?.title === 'New Todo 12', 'New todo 12 should exist');
+        
+      } finally {
+        await store.close();
+      }
+    });
+
+    test('Race condition protection: Concurrent writes to same todo', async () => {
+      const store = await TestUtils.createJsonStore();
+      try {
+        const todoList = TestUtils.createSampleTodoList();
+        await store.createTodoList(todoList);
+        
+        // Create a todo
+        await store.createTodo(TestUtils.createSampleTodo(todoList.id, 1, {
+          title: 'Test Todo'
+        }));
+        
+        // Try to update the same todo concurrently with different status values
+        // Only one should win, but data should remain consistent
+        const updates = await Promise.allSettled([
+          store.updateTodo(todoList.id, 1, { status: 'done' }),
+          store.updateTodo(todoList.id, 1, { status: 'canceled' }),
+          store.updateTodo(todoList.id, 1, { status: 'pending' }),
+        ]);
+        
+        // All updates should succeed (last writer wins)
+        updates.forEach((result, index) => {
+          assert(result.status === 'fulfilled', `Update ${index} should succeed`);
+        });
+        
+        // Final state should be consistent
+        const finalTodo = await store.getTodo(todoList.id, 1);
+        assert(finalTodo !== undefined, 'Todo should still exist');
+        assert(['done', 'canceled', 'pending'].includes(finalTodo.status), 'Final status should be valid');
+        
+      } finally {
+        await store.close();
+      }
+    });
   });
 
   describe('Custom Exception Tests', () => {

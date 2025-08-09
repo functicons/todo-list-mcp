@@ -94,17 +94,22 @@ async function main() {
     console.log("\nCreating a test todo list...");
     const createListResult = await client.callTool({
       name: "create-todo-list",
-      arguments: {
-        description: "A list for tracking MCP-related learning tasks"
-      }
+      arguments: {}
     });
     
     const createListContent = createListResult.content as ContentText[];
     console.log(createListContent[0].text);
 
-    // Extract the list ID from the response
-    const listIdMatch = createListContent[0].text.match(/ID: ([0-9a-f-]+)/);
-    const listId = listIdMatch ? listIdMatch[1] : null;
+    // Extract the list ID from the JSON response
+    let listId: string | null = null;
+    try {
+      const responseData = JSON.parse(createListContent[0].text);
+      if (responseData.success && responseData.data && responseData.data.id) {
+        listId = responseData.data.id;
+      }
+    } catch (parseError) {
+      console.error("Failed to parse create list response:", parseError);
+    }
 
     if (!listId) {
       throw new Error("Failed to extract list ID from response");
@@ -113,16 +118,15 @@ async function main() {
     /**
      * Create a test todo
      * 
-     * This demonstrates the create-todo tool, which now requires a listId
-     * along with title and markdown description as arguments.
+     * This demonstrates the create-todo tool, which requires a listId
+     * and title as arguments.
      */
     console.log("\nCreating a test todo...");
     const createTodoResult = await client.callTool({
       name: "create-todo",
       arguments: {
         listId: listId,
-        title: "Learn about MCP",
-        description: "# Model Context Protocol\n\n- Understand core concepts\n- Build a simple server\n- Test with Claude"
+        title: "Learn about MCP"
       }
     });
     
@@ -131,64 +135,70 @@ async function main() {
     console.log(createContent[0].text);
 
     /**
-     * Extract the todo seqno from the response
+     * Extract the todo seqno from the JSON response
      * 
-     * We use a simple regex to parse the seqno from the formatted response.
+     * We parse the JSON response to get the seqno from the data object.
      */
-    const seqnoMatch = createContent[0].text.match(/seqno: (\d+)/);
-    const todoSeqno = seqnoMatch ? parseInt(seqnoMatch[1], 10) : null;
+    let todoSeqno: number | null = null;
+    try {
+      const todoResponseData = JSON.parse(createContent[0].text);
+      if (todoResponseData.success && todoResponseData.data && todoResponseData.data.seqno) {
+        todoSeqno = todoResponseData.data.seqno;
+      }
+    } catch (parseError) {
+      console.error("Failed to parse create todo response:", parseError);
+    }
 
     // Only proceed if we successfully created a todo and extracted its seqno
     if (todoSeqno) {
 
       /**
-       * List todos by list ID
+       * Get todos in the list
        * 
-       * This demonstrates the list-todos-by-list tool, which shows
+       * This demonstrates the get-todos tool, which shows
        * todos for a specific list.
        */
-      console.log("\nListing todos in the MCP Learning list...");
-      const listTodosByListResult = await client.callTool({
-        name: "list-todos-by-list",
+      console.log("\nListing todos in the list...");
+      const getTodosResult = await client.callTool({
+        name: "get-todos",
         arguments: {
           listId: listId
         }
       });
-      const listByListContent = listTodosByListResult.content as ContentText[];
-      console.log(listByListContent[0].text);
-
-      
+      const getTodosContent = getTodosResult.content as ContentText[];
+      console.log(getTodosContent[0].text);
 
       /**
-       * Summarize active todos
+       * Update the todo status
        * 
-       * This demonstrates the summarize-active-todos tool, which
-       * generates a summary of all non-completed todos.
+       * This demonstrates the update-todo tool, which changes
+       * the status of an existing todo.
        */
-      console.log("\nSummarizing active todos...");
-      const summaryResult = await client.callTool({
-        name: "summarize-active-todos",
-        arguments: {}
+      console.log("\nUpdating todo status to 'done'...");
+      const updateResult = await client.callTool({
+        name: "update-todo",
+        arguments: {
+          listId: listId,
+          seqno: todoSeqno,
+          status: "done"
+        }
       });
-      const summaryContent = summaryResult.content as ContentText[];
-      console.log(summaryContent[0].text);
+      const updateContent = updateResult.content as ContentText[];
+      console.log(updateContent[0].text);
 
       /**
-       * Delete the todo
-       * 
-       * This demonstrates the delete-todo tool, which permanently
-       * removes a todo from the database.
+       * Get the updated todo to verify the change
        */
-      console.log("\nDeleting the test todo...");
-      const deleteTodoResult = await client.callTool({
-        name: "delete-todo",
+      console.log("\nGetting the updated todo...");
+      const getUpdatedTodoResult = await client.callTool({
+        name: "get-todos",
         arguments: {
           listId: listId,
           seqno: todoSeqno
         }
       });
-      const deleteContent = deleteTodoResult.content as ContentText[];
-      console.log(deleteContent[0].text);
+      const getUpdatedContent = getUpdatedTodoResult.content as ContentText[];
+      console.log(getUpdatedContent[0].text);
     }
 
     // Close the client connection
