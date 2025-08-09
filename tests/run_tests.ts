@@ -6,6 +6,7 @@
  */
 import { runAllTests } from './integration_tests.js';
 import { runMigrationTests } from './migration_tests.js';
+import { runConcurrentWriteTest } from './concurrent_write_test.js';
 
 /**
  * Main test execution function
@@ -36,6 +37,18 @@ async function main() {
     testsPassed++;
   } catch (error) {
     console.error('❌ Migration Tests: FAILED');
+    console.error(error);
+    console.log();
+    testsFailed++;
+  }
+  
+  try {
+    console.log('🔐 Running Concurrent Write Tests...');
+    await runConcurrentWriteTest();
+    console.log('✅ Concurrent Write Tests: PASSED\n');
+    testsPassed++;
+  } catch (error) {
+    console.error('❌ Concurrent Write Tests: FAILED');
     console.error(error);
     console.log();
     testsFailed++;

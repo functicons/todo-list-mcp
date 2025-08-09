@@ -9,7 +9,6 @@ import { promises as fs } from 'fs';
 import { dirname, join } from 'path';
 import * as path from 'path';
 import { Mutex } from 'async-mutex';
-import lockfile from 'proper-lockfile';
 import { Todo } from '../models/Todo.js';
 import { TodoList } from '../models/TodoList.js';
 import { DataStore } from '../interfaces/DataStore.js';
@@ -114,31 +113,74 @@ export class JsonFileDataStore implements DataStore {
   }
 
   /**
-   * Execute operation with file locking to prevent concurrent access
+   * Execute operation with temp file as lock to prevent concurrent access
    */
-  private async withFileLock<T>(filePath: string, operation: () => Promise<T>): Promise<T> {
-    let release: (() => Promise<void>) | undefined;
-    try {
-      release = await lockfile.lock(filePath, {
-        retries: {
-          retries: 5,
-          factor: 2,
-          minTimeout: 100,
-          maxTimeout: 1000
+  private async withTempFileLock<T>(filePath: string, write: boolean, operation: () => Promise<T>): Promise<T> {
+    if (!write) {
+      // For read operations, just check if .tmp exists and wait if needed
+      const tempPath = filePath + '.tmp';
+      for (let i = 0; i < 50; i++) {
+        try {
+          await fs.access(tempPath);
+          // .tmp exists, someone is writing, wait
+          await new Promise(r => setTimeout(r, 100));
+        } catch {
+          // No .tmp file, safe to read
+          return await operation();
         }
-      });
+      }
+      throw new FileOperationException(
+        'Timeout waiting for write lock to be released',
+        'LOCK',
+        filePath
+      );
+    }
+    
+    // For write operations, use .tmp as lock
+    const tempPath = filePath + '.tmp';
+    
+    // Wait for any existing .tmp to be cleared
+    for (let i = 0; i < 50; i++) {
+      try {
+        // Check if .tmp exists and if it's stale (older than 5 seconds)
+        const stats = await fs.stat(tempPath);
+        if (Date.now() - stats.mtimeMs > 5000) {
+          // Stale lock, remove it
+          try {
+            await fs.unlink(tempPath);
+          } catch {
+            // Ignore if already removed
+          }
+        } else {
+          // Fresh lock, wait
+          await new Promise(r => setTimeout(r, 100));
+          continue;
+        }
+      } catch {
+        // No .tmp file, we can proceed
+        break;
+      }
+      
+      if (i === 49) {
+        throw new FileOperationException(
+          'Timeout waiting for temp file lock',
+          'LOCK',
+          filePath
+        );
+      }
+    }
+    
+    // Create .tmp file as our lock and perform operation
+    try {
       return await operation();
     } catch (error) {
-      throw new FileOperationException(
-        `Failed to acquire file lock: ${error instanceof Error ? error.message : error}`,
-        'LOCK',
-        filePath,
-        error instanceof Error ? error : undefined
-      );
-    } finally {
-      if (release) {
-        await release();
+      // Clean up .tmp on error
+      try {
+        await fs.unlink(tempPath);
+      } catch {
+        // Ignore cleanup errors
       }
+      throw error;
     }
   }
 
@@ -154,14 +196,7 @@ export class JsonFileDataStore implements DataStore {
     };
     
     try {
-      // Ensure the file exists for locking (create empty file if it doesn't exist)
-      try {
-        await fs.access(filePath);
-      } catch {
-        await fs.writeFile(filePath, '{}', 'utf-8');
-      }
-      
-      await this.withFileLock(filePath, async () => {
+      await this.withTempFileLock(filePath, true, async () => {
         const tempPath = filePath + '.tmp';
         const dataString = JSON.stringify(data, null, 2);
         await fs.writeFile(tempPath, dataString, 'utf-8');
@@ -184,7 +219,7 @@ export class JsonFileDataStore implements DataStore {
     const filePath = this.getTodoListFilePath(listId);
     
     try {
-      const content = await this.withFileLock(filePath, async () => {
+      const content = await this.withTempFileLock(filePath, false, async () => {
         return await fs.readFile(filePath, 'utf-8');
       });
       return JSON.parse(content);
