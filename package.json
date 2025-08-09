@@ -14,6 +14,7 @@
     "rebuild": "npm run reinstall && npm run build",
     "start": "node dist/src/index.js",
     "dev": "npm run build && npm start",
+    "lint": "eslint src/**/*.ts tests/**/*.ts scripts/**/*.ts",
     "test-client": "npm run build && node dist/scripts/test_client.js",
     "test:integration": "npm run build && node dist/tests/run_tests.js",
     "test": "npm run test:integration && npm run test-client",
@@ -40,6 +41,9 @@
     "@modelcontextprotocol/inspector": "^0.5.1",
     "@types/better-sqlite3": "^7.6.9",
     "@types/node": "^20.11.28",
-    "@types/uuid": "^9.0.8"
+    "@types/uuid": "^9.0.8",
+    "@typescript-eslint/eslint-plugin": "^8.39.0",
+    "@typescript-eslint/parser": "^8.39.0",
+    "eslint": "^9.33.0"
   }
 }

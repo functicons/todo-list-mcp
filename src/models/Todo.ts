@@ -18,8 +18,8 @@ import { z } from 'zod';
  * 
  * This defines the possible statuses for a Todo item.
  */
-export const TodoStatus = z.enum(['pending', 'done', 'canceled']);
-export type TodoStatus = z.infer<typeof TodoStatus>;
+export const TodoStatusSchema = z.enum(['pending', 'done', 'canceled']);
+export type TodoStatus = z.infer<typeof TodoStatusSchema>;
 
 /**
  * Todo Interface
@@ -59,7 +59,7 @@ export const CreateTodoSchema = z.object({
 export const UpdateTodoSchema = z.object({
   listId: z.string().uuid("Invalid TodoList ID"),
   seqno: z.number().int().positive("seqno must be a positive integer"),
-  status: TodoStatus,
+  status: TodoStatusSchema,
 });
 
 // Schema for deleting a todo - requires listId and seqno

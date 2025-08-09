@@ -42,7 +42,7 @@ export const DeleteTodoListSchema = z.object({
  * @param data The validated input data
  * @returns A fully formed TodoList object
  */
-export function createTodoList(data: z.infer<typeof CreateTodoListSchema>): TodoList {
+export function createTodoList(_data: z.infer<typeof CreateTodoListSchema>): TodoList {
   return {
     id: uuidv4(),
   };

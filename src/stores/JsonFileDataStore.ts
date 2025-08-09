@@ -6,7 +6,7 @@
  * concurrency control to prevent race conditions.
  */
 import { promises as fs } from 'fs';
-import { dirname, join } from 'path';
+import { dirname } from 'path';
 import * as path from 'path';
 import { Mutex } from 'async-mutex';
 import { Todo } from '../models/Todo.js';
@@ -15,7 +15,6 @@ import { DataStore } from '../interfaces/DataStore.js';
 import {
   DataStoreInitializationException,
   FileOperationException,
-  DataValidationException,
   ConstraintViolationException
 } from '../exceptions/DataStoreExceptions.js';
 
@@ -286,7 +285,7 @@ export class JsonFileDataStore implements DataStore {
     });
   }
 
-  async updateTodoList(id: string, updates: Partial<Omit<TodoList, 'id'>>): Promise<TodoList | undefined> {
+  async updateTodoList(id: string, _updates: Partial<Omit<TodoList, 'id'>>): Promise<TodoList | undefined> {
     return this.operationMutex.runExclusive(async () => {
       // Since TodoList only has id field, just verify it exists and return it
       return this.todoListCache.get(id);
@@ -450,7 +449,7 @@ export class JsonFileDataStore implements DataStore {
     });
   }
 
-  async searchTodosByDate(dateStr: string): Promise<Todo[]> {
+  async searchTodosByDate(_dateStr: string): Promise<Todo[]> {
     return this.operationMutex.runExclusive(async () => {
       // Since there are no timestamp fields anymore, return empty array
       return [];

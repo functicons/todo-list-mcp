@@ -162,7 +162,7 @@ async function main() {
     console.log(`\nCreated ${createdTodos.length} todos in the list`);
     
     // Use the first created todo for subsequent operations
-    let todoSeqno: number | null = createdTodos.length > 0 ? createdTodos[0].seqno : null;
+    const todoSeqno: number | null = createdTodos.length > 0 ? createdTodos[0].seqno : null;
 
     // Only proceed if we successfully created a todo and extracted its seqno
     if (todoSeqno) {
