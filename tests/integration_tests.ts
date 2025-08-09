@@ -352,6 +352,149 @@ async function runAllTests() {
     });
   });
 
+  describe('Multiple Todo Operations and Status Tests', () => {
+    test('Create multiple todos and test all status transitions', async () => {
+      const store = await TestUtils.createJsonStore();
+      try {
+        const todoList = TestUtils.createSampleTodoList();
+        await store.createTodoList(todoList);
+        
+        // Create multiple todos with different titles
+        const todoTitles = [
+          'Learn about MCP',
+          'Set up development environment', 
+          'Write unit tests',
+          'Deploy to production',
+          'Document the API'
+        ];
+        
+        const createdTodos = [];
+        for (let i = 0; i < todoTitles.length; i++) {
+          const todo = TestUtils.createSampleTodo(todoList.id, i + 1, { 
+            title: todoTitles[i] 
+          });
+          const created = await store.createTodo(todo);
+          createdTodos.push(created);
+          
+          TodoAssertions.assertTodo(created, {
+            title: todoTitles[i],
+            listId: todoList.id,
+            seqno: i + 1
+          });
+          assert.equal(created.status, 'pending', 'New todo should have pending status');
+        }
+        
+        TodoAssertions.assertArrayLength(createdTodos, 5, 'Should create 5 todos');
+        
+        // Test done status
+        const completedTodo = await store.updateTodo(todoList.id, 1, { status: 'done' });
+        assert.ok(completedTodo);
+        assert.equal(completedTodo.status, 'done', 'Todo should be marked as done');
+        assert.equal(completedTodo.title, 'Learn about MCP', 'Title should remain unchanged');
+        
+        // Test canceled status
+        const canceledTodo = await store.updateTodo(todoList.id, 2, { status: 'canceled' });
+        assert.ok(canceledTodo);
+        assert.equal(canceledTodo.status, 'canceled', 'Todo should be marked as canceled');
+        assert.equal(canceledTodo.title, 'Set up development environment', 'Title should remain unchanged');
+        
+        // Test pending status (back to pending)
+        const pendingTodo = await store.updateTodo(todoList.id, 3, { status: 'pending' });
+        assert.ok(pendingTodo);
+        assert.equal(pendingTodo.status, 'pending', 'Todo should be marked as pending');
+        assert.equal(pendingTodo.title, 'Write unit tests', 'Title should remain unchanged');
+        
+        // Verify all todos in final state
+        const allTodos = await store.getTodosByListId(todoList.id);
+        TodoAssertions.assertArrayLength(allTodos, 5, 'All todos should still exist');
+        
+        // Check specific statuses
+        const finalTodos = allTodos.sort((a, b) => a.seqno - b.seqno);
+        assert.equal(finalTodos[0].status, 'done', 'First todo should be done');
+        assert.equal(finalTodos[1].status, 'canceled', 'Second todo should be canceled');
+        assert.equal(finalTodos[2].status, 'pending', 'Third todo should be pending');
+        assert.equal(finalTodos[3].status, 'pending', 'Fourth todo should still be pending');
+        assert.equal(finalTodos[4].status, 'pending', 'Fifth todo should still be pending');
+        
+      } finally {
+        await store.close();
+      }
+    });
+
+    test('SQLite: Create multiple todos and test status transitions', async () => {
+      const store = await TestUtils.createSqliteStore();
+      try {
+        const todoList = TestUtils.createSampleTodoList();
+        await store.createTodoList(todoList);
+        
+        // Create multiple todos concurrently
+        const todoPromises = [
+          'Complete project setup',
+          'Review code changes', 
+          'Update documentation',
+          'Run integration tests'
+        ].map((title, index) => 
+          store.createTodo(TestUtils.createSampleTodo(todoList.id, index + 1, { title }))
+        );
+        
+        const createdTodos = await Promise.all(todoPromises);
+        TodoAssertions.assertArrayLength(createdTodos, 4, 'Should create 4 todos concurrently');
+        
+        // Test concurrent status updates
+        const statusUpdates = await Promise.all([
+          store.updateTodo(todoList.id, 1, { status: 'done' }),
+          store.updateTodo(todoList.id, 2, { status: 'canceled' }),
+          store.updateTodo(todoList.id, 3, { status: 'done' }),
+          // Leave todo 4 as pending
+        ]);
+        
+        // Verify all updates succeeded
+        statusUpdates.forEach((updated, index) => {
+          assert.ok(updated, `Status update ${index + 1} should succeed`);
+        });
+        
+        // Verify final statuses
+        const finalTodos = await store.getTodosByListId(todoList.id);
+        const sortedTodos = finalTodos.sort((a, b) => a.seqno - b.seqno);
+        
+        assert.equal(sortedTodos[0].status, 'done', 'Todo 1 should be done');
+        assert.equal(sortedTodos[1].status, 'canceled', 'Todo 2 should be canceled');  
+        assert.equal(sortedTodos[2].status, 'done', 'Todo 3 should be done');
+        assert.equal(sortedTodos[3].status, 'pending', 'Todo 4 should remain pending');
+        
+      } finally {
+        await store.close();
+      }
+    });
+
+    test('Status validation and edge cases', async () => {
+      const store = await TestUtils.createJsonStore();
+      try {
+        const todoList = TestUtils.createSampleTodoList();
+        await store.createTodoList(todoList);
+        
+        const todo = TestUtils.createSampleTodo(todoList.id, 1, { title: 'Test Status Changes' });
+        await store.createTodo(todo);
+        
+        // Test all valid status transitions
+        const validStatuses: Array<'pending' | 'done' | 'canceled'> = ['pending', 'done', 'canceled'];
+        
+        for (const status of validStatuses) {
+          const updated = await store.updateTodo(todoList.id, 1, { status });
+          assert.ok(updated, `Should update to ${status} status`);
+          assert.equal(updated.status, status, `Status should be ${status}`);
+          
+          // Verify persistence
+          const retrieved = await store.getTodo(todoList.id, 1);
+          assert.equal(retrieved?.status, status, `Status should persist as ${status}`);
+        }
+        
+      } finally {
+        await store.close();
+      }
+    });
+  });
+
   describe('Data Integrity Tests', () => {
     test('Timestamps are properly maintained', async () => {
       const store = await TestUtils.createSqliteStore();

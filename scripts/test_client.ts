@@ -116,38 +116,53 @@ async function main() {
     }
 
     /**
-     * Create a test todo
+     * Create multiple test todos
      * 
-     * This demonstrates the create-todo tool, which requires a listId
-     * and title as arguments.
+     * This demonstrates creating multiple todos in the same list.
      */
-    console.log("\nCreating a test todo...");
-    const createTodoResult = await client.callTool({
-      name: "create-todo",
-      arguments: {
-        listId: listId,
-        title: "Learn about MCP"
-      }
-    });
+    console.log("\nCreating multiple test todos...");
     
-    // Type assertion to access the content
-    const createContent = createTodoResult.content as ContentText[];
-    console.log(createContent[0].text);
-
-    /**
-     * Extract the todo seqno from the JSON response
-     * 
-     * We parse the JSON response to get the seqno from the data object.
-     */
-    let todoSeqno: number | null = null;
-    try {
-      const todoResponseData = JSON.parse(createContent[0].text);
-      if (todoResponseData.success && todoResponseData.data && todoResponseData.data.seqno) {
-        todoSeqno = todoResponseData.data.seqno;
+    const todoTitles = [
+      "Learn about MCP",
+      "Set up development environment", 
+      "Write unit tests",
+      "Deploy to production",
+      "Document the API"
+    ];
+    
+    const createdTodos: Array<{seqno: number, title: string}> = [];
+    
+    for (const title of todoTitles) {
+      console.log(`\nCreating todo: "${title}"`);
+      const createTodoResult = await client.callTool({
+        name: "create-todo",
+        arguments: {
+          listId: listId,
+          title: title
+        }
+      });
+      
+      const createContent = createTodoResult.content as ContentText[];
+      console.log(createContent[0].text);
+      
+      // Extract the todo seqno from the JSON response
+      try {
+        const todoResponseData = JSON.parse(createContent[0].text);
+        if (todoResponseData.success && todoResponseData.data && todoResponseData.data.seqno) {
+          createdTodos.push({
+            seqno: todoResponseData.data.seqno,
+            title: title
+          });
+        }
+      } catch (parseError) {
+        console.error(`Failed to parse create todo response for "${title}":`, parseError);
       }
-    } catch (parseError) {
-      console.error("Failed to parse create todo response:", parseError);
     }
+    
+    console.log(`\nCreated ${createdTodos.length} todos in the list`);
+    
+    // Use the first created todo for subsequent operations
+    let todoSeqno: number | null = createdTodos.length > 0 ? createdTodos[0].seqno : null;
 
     // Only proceed if we successfully created a todo and extracted its seqno
     if (todoSeqno) {
@@ -169,36 +184,80 @@ async function main() {
       console.log(getTodosContent[0].text);
 
       /**
-       * Update the todo status
+       * Demonstrate different todo status updates
        * 
-       * This demonstrates the update-todo tool, which changes
-       * the status of an existing todo.
+       * This shows how to update todos to different statuses:
+       * - done: Mark a todo as completed
+       * - canceled: Cancel a todo 
+       * - pending: Mark as pending (default status)
        */
-      console.log("\nUpdating todo status to 'done'...");
-      const updateResult = await client.callTool({
-        name: "update-todo",
-        arguments: {
-          listId: listId,
-          seqno: todoSeqno,
-          status: "done"
-        }
-      });
-      const updateContent = updateResult.content as ContentText[];
-      console.log(updateContent[0].text);
+      
+      if (createdTodos.length >= 3) {
+        // Complete the first todo (mark as done)
+        console.log(`\nCompleting todo: "${createdTodos[0].title}"`);
+        const completeResult = await client.callTool({
+          name: "update-todo",
+          arguments: {
+            listId: listId,
+            seqno: createdTodos[0].seqno,
+            status: "done"
+          }
+        });
+        const completeContent = completeResult.content as ContentText[];
+        console.log(completeContent[0].text);
+
+        // Cancel the second todo
+        console.log(`\nCanceling todo: "${createdTodos[1].title}"`);
+        const cancelResult = await client.callTool({
+          name: "update-todo",
+          arguments: {
+            listId: listId,
+            seqno: createdTodos[1].seqno,
+            status: "canceled"
+          }
+        });
+        const cancelContent = cancelResult.content as ContentText[];
+        console.log(cancelContent[0].text);
+
+        // Reset the third todo back to pending status
+        console.log(`\nResetting todo to pending: "${createdTodos[2].title}"`);
+        const pendingResult = await client.callTool({
+          name: "update-todo",
+          arguments: {
+            listId: listId,
+            seqno: createdTodos[2].seqno,
+            status: "pending"
+          }
+        });
+        const pendingContent = pendingResult.content as ContentText[];
+        console.log(pendingContent[0].text);
+      } else {
+        // Fallback to single todo update if we don't have enough todos
+        console.log("\nUpdating todo status to 'done'...");
+        const updateResult = await client.callTool({
+          name: "update-todo",
+          arguments: {
+            listId: listId,
+            seqno: todoSeqno,
+            status: "done"
+          }
+        });
+        const updateContent = updateResult.content as ContentText[];
+        console.log(updateContent[0].text);
+      }
 
       /**
-       * Get the updated todo to verify the change
+       * Get all todos to see the final state with different statuses
        */
-      console.log("\nGetting the updated todo...");
-      const getUpdatedTodoResult = await client.callTool({
+      console.log("\nFinal state - listing all todos with their statuses...");
+      const getFinalTodosResult = await client.callTool({
         name: "get-todos",
         arguments: {
-          listId: listId,
-          seqno: todoSeqno
+          listId: listId
         }
       });
-      const getUpdatedContent = getUpdatedTodoResult.content as ContentText[];
-      console.log(getUpdatedContent[0].text);
+      const getFinalContent = getFinalTodosResult.content as ContentText[];
+      console.log(getFinalContent[0].text);
     }
 
     // Close the client connection
