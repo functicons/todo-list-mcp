@@ -4,7 +4,7 @@ import { join } from 'path';
 interface LogEntry {
   timestamp: string;
   tool: string;
-  params: any;
+  params: Record<string, unknown>;
   success: boolean;
   response?: string;
   error?: string;
@@ -38,7 +38,7 @@ class ApiLogger {
     return `${timestamp} ${status} ${entry.tool} (${entry.duration}ms) | ${paramsStr} → ${responseStr}`;
   }
 
-  async logToolCall(tool: string, params: any, success: boolean, response?: string, error?: string, duration?: number): Promise<void> {
+  async logToolCall(tool: string, params: Record<string, unknown>, success: boolean, response?: string, error?: string, duration?: number): Promise<void> {
     try {
       const entry: LogEntry = {
         timestamp: this.formatTimestamp(),

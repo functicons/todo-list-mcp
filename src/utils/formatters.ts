@@ -68,7 +68,7 @@ export function formatTodoList(todos: Todo[]): object {
  * @param message Optional success message
  * @returns A properly formatted MCP response object
  */
-export function createSuccessResponse(data: any, message?: string) {
+export function createSuccessResponse(data: unknown, message?: string) {
   return {
     content: [
       {

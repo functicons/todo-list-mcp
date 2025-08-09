@@ -10,6 +10,27 @@ import { dirname, join, basename } from 'path';
 import { promises as fs } from 'fs';
 import { Todo } from '../models/Todo.js';
 import { TodoList } from '../models/TodoList.js';
+
+// Database row types
+interface TodoListRow {
+  id: string;
+}
+
+interface TodoRow {
+  listId: string;
+  seqno: number;
+  title: string;
+  status: string;
+}
+
+interface TableInfoRow {
+  cid: number;
+  name: string;
+  type: string;
+  notnull: number;
+  dflt_value: string | null;
+  pk: number;
+}
 import { DataStore } from '../interfaces/DataStore.js';
 import {
   DataStoreInitializationException,
@@ -112,14 +133,14 @@ export class SqliteDataStore implements DataStore {
    */
   private validateSchema(): void {
     try {
-      const tableInfo = this.db.prepare("PRAGMA table_info(todos)").all() as any[];
+      const tableInfo = this.db.prepare("PRAGMA table_info(todos)").all() as TableInfoRow[];
       
       if (tableInfo.length > 0) {
-        const hasSeqno = tableInfo.some((column: any) => column.name === 'seqno');
-        const hasId = tableInfo.some((column: any) => column.name === 'id');
+        const hasSeqno = tableInfo.some((column: TableInfoRow) => column.name === 'seqno');
+        const hasId = tableInfo.some((column: TableInfoRow) => column.name === 'id');
         
         if (hasId || !hasSeqno) {
-          const currentColumns = tableInfo.map((col: any) => col.name).join(', ');
+          const currentColumns = tableInfo.map((col: TableInfoRow) => col.name).join(', ');
           throw new IncompatibleSchemaException(
             'Incompatible database schema detected. The existing todos table has a legacy schema. ' +
             'Please use a new database file or manually migrate your data to the new schema with listId and seqno.',
@@ -139,7 +160,7 @@ export class SqliteDataStore implements DataStore {
   /**
    * Helper to convert database row to TodoList object
    */
-  private rowToTodoList(row: any): TodoList {
+  private rowToTodoList(row: TodoListRow): TodoList {
     return {
       id: row.id
     };
@@ -148,7 +169,7 @@ export class SqliteDataStore implements DataStore {
   /**
    * Helper to convert database row to Todo object
    */
-  private rowToTodo(row: any): Todo {
+  private rowToTodo(row: TodoRow): Todo {
     return {
       listId: row.listId,
       seqno: row.seqno,
@@ -168,8 +189,9 @@ export class SqliteDataStore implements DataStore {
       
       stmt.run(todoList.id);
       return todoList;
-    } catch (error: any) {
-      if (error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+    } catch (error: unknown) {
+      const sqliteError = error as { code?: string; message?: string };
+      if (sqliteError.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
         throw new ConstraintViolationException(
           `TodoList with ID '${todoList.id}' already exists`,
           'UNIQUE',
@@ -177,7 +199,7 @@ export class SqliteDataStore implements DataStore {
         );
       }
       throw new DatabaseOperationException(
-        `Failed to create TodoList: ${error.message}`,
+        `Failed to create TodoList: ${sqliteError.message || 'Unknown error'}`,
         'INSERT',
         error
       );
@@ -186,17 +208,17 @@ export class SqliteDataStore implements DataStore {
 
   async getTodoList(id: string): Promise<TodoList | undefined> {
     const stmt = this.db.prepare('SELECT * FROM todo_lists WHERE id = ?');
-    const row = stmt.get(id) as any;
+    const row = stmt.get(id) as TodoListRow | undefined;
     return row ? this.rowToTodoList(row) : undefined;
   }
 
   async getAllTodoLists(): Promise<TodoList[]> {
     const stmt = this.db.prepare('SELECT * FROM todo_lists ORDER BY createdAt DESC');
-    const rows = stmt.all() as any[];
+    const rows = stmt.all() as TodoListRow[];
     return rows.map(row => this.rowToTodoList(row));
   }
 
-  async updateTodoList(id: string, updates: Partial<Omit<TodoList, 'id'>>): Promise<TodoList | undefined> {
+  async updateTodoList(id: string, _updates: Partial<Omit<TodoList, 'id'>>): Promise<TodoList | undefined> {
     // Since TodoList only has id field, just verify it exists and return it
     return await this.getTodoList(id);
   }
@@ -218,15 +240,16 @@ export class SqliteDataStore implements DataStore {
       
       stmt.run(todo.listId, todo.seqno, todo.title, todo.status);
       return todo;
-    } catch (error: any) {
-      if (error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+    } catch (error: unknown) {
+      const sqliteError = error as { code?: string; message?: string };
+      if (sqliteError.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
         throw new ConstraintViolationException(
           `Todo with listId '${todo.listId}' and seqno '${todo.seqno}' already exists`,
           'UNIQUE',
           'PRIMARY KEY'
         );
       }
-      if (error.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+      if (sqliteError.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
         throw new ConstraintViolationException(
           `TodoList with ID '${todo.listId}' does not exist`,
           'FOREIGN_KEY',
@@ -234,7 +257,7 @@ export class SqliteDataStore implements DataStore {
         );
       }
       throw new DatabaseOperationException(
-        `Failed to create Todo: ${error.message}`,
+        `Failed to create Todo: ${sqliteError.message || 'Unknown error'}`,
         'INSERT',
         error
       );
@@ -243,19 +266,19 @@ export class SqliteDataStore implements DataStore {
 
   async getTodo(listId: string, seqno: number): Promise<Todo | undefined> {
     const stmt = this.db.prepare('SELECT * FROM todos WHERE listId = ? AND seqno = ?');
-    const row = stmt.get(listId, seqno) as any;
+    const row = stmt.get(listId, seqno) as TodoRow | undefined;
     return row ? this.rowToTodo(row) : undefined;
   }
 
   async getAllTodos(): Promise<Todo[]> {
     const stmt = this.db.prepare('SELECT * FROM todos ORDER BY listId, seqno ASC');
-    const rows = stmt.all() as any[];
+    const rows = stmt.all() as TodoRow[];
     return rows.map(row => this.rowToTodo(row));
   }
 
   async getTodosByListId(listId: string): Promise<Todo[]> {
     const stmt = this.db.prepare('SELECT * FROM todos WHERE listId = ? ORDER BY seqno ASC');
-    const rows = stmt.all(listId) as any[];
+    const rows = stmt.all(listId) as TodoRow[];
     return rows.map(row => this.rowToTodo(row));
   }
 
@@ -290,11 +313,11 @@ export class SqliteDataStore implements DataStore {
   async searchTodosByTitle(title: string): Promise<Todo[]> {
     const searchTerm = `%${title}%`;
     const stmt = this.db.prepare('SELECT * FROM todos WHERE title LIKE ? COLLATE NOCASE ORDER BY listId, seqno ASC');
-    const rows = stmt.all(searchTerm) as any[];
+    const rows = stmt.all(searchTerm) as TodoRow[];
     return rows.map(row => this.rowToTodo(row));
   }
 
-  async searchTodosByDate(dateStr: string): Promise<Todo[]> {
+  async searchTodosByDate(_dateStr: string): Promise<Todo[]> {
     // Since there are no timestamp fields anymore, return empty array
     return [];
   }

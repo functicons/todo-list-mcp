@@ -88,7 +88,7 @@ export class DataValidationException extends DataStoreException {
   constructor(
     message: string,
     public readonly field?: string,
-    public readonly value?: any
+    public readonly value?: unknown
   ) {
     super(message, 'DATA_VALIDATION_FAILED');
   }

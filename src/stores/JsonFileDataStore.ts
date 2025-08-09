@@ -113,7 +113,8 @@ export class JsonFileDataStore implements DataStore {
         }
       }
     } catch (error) {
-      if ((error as any).code !== 'ENOENT') {
+      const nodeError = error as { code?: string };
+      if (nodeError.code !== 'ENOENT') {
         throw error;
       }
       // Directory doesn't exist yet, that's OK
@@ -237,7 +238,8 @@ export class JsonFileDataStore implements DataStore {
       });
       return JSON.parse(content);
     } catch (error) {
-      if ((error as any).code === 'ENOENT') {
+      const nodeError = error as { code?: string };
+      if (nodeError.code === 'ENOENT') {
         return undefined;
       }
       throw error;
@@ -303,7 +305,8 @@ export class JsonFileDataStore implements DataStore {
       try {
         await fs.unlink(filePath);
       } catch (error) {
-        if ((error as any).code !== 'ENOENT') {
+        const nodeError = error as { code?: string };
+        if (nodeError.code !== 'ENOENT') {
           throw error;
         }
       }

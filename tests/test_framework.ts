@@ -12,8 +12,8 @@ import { tmpdir } from 'os';
 import { DataStore } from '../src/interfaces/DataStore.js';
 import { JsonFileDataStore } from '../src/stores/JsonFileDataStore.js';
 import { SqliteDataStore } from '../src/stores/SqliteDataStore.js';
-import { createTodoList } from '../src/models/TodoList.js';
-import { createTodo, CreateTodoSchema } from '../src/models/Todo.js';
+import { TodoList, createTodoList } from '../src/models/TodoList.js';
+import { Todo, createTodo, CreateTodoSchema } from '../src/models/Todo.js';
 import { z } from 'zod';
 
 /**
@@ -58,7 +58,7 @@ export class TestUtils {
       if (filePath) {
         await fs.unlink(filePath).catch(() => {}); // Ignore errors if file doesn't exist
       }
-    } catch (error) {
+    } catch {
       // Ignore cleanup errors in tests
     }
   }
@@ -91,7 +91,7 @@ export class TodoAssertions {
   /**
    * Assert that a todo list has the expected properties
    */
-  static assertTodoList(actual: any, expected: Partial<any>) {
+  static assertTodoList(actual: unknown, _expected: Partial<TodoList>) {
     assert.ok(actual, 'TodoList should exist');
     assert.equal(typeof actual.id, 'string', 'TodoList should have string id');
     assert.ok(actual.id.length > 0, 'TodoList id should not be empty');
@@ -102,7 +102,7 @@ export class TodoAssertions {
   /**
    * Assert that a todo has the expected properties
    */
-  static assertTodo(actual: any, expected: Partial<any>) {
+  static assertTodo(actual: unknown, expected: Partial<Todo>) {
     assert.ok(actual, 'Todo should exist');
     assert.equal(typeof actual.listId, 'string', 'Todo should have string listId');
     assert.ok(actual.listId.length > 0, 'Todo listId should not be empty');
@@ -127,7 +127,7 @@ export class TodoAssertions {
   /**
    * Assert that an array contains the expected number of items
    */
-  static assertArrayLength(actual: any[], expectedLength: number, message?: string) {
+  static assertArrayLength(actual: unknown[], expectedLength: number, message?: string) {
     assert.equal(Array.isArray(actual), true, 'Should be an array');
     assert.equal(actual.length, expectedLength, message || `Array should have ${expectedLength} items`);
   }

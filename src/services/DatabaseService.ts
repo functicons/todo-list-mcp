@@ -11,6 +11,16 @@
  * - Easy to install with minimal dependencies
  */
 import Database from 'better-sqlite3';
+
+// Database row types
+interface TableInfoRow {
+  cid: number;
+  name: string;
+  type: string;
+  notnull: number;
+  dflt_value: string | null;
+  pk: number;
+}
 import { config, ensureDataFolder } from '../config.js';
 
 /**
@@ -100,11 +110,11 @@ class DatabaseService {
   private migrateSchema(): void {
     try {
       // Check if the old schema exists (todos table without listId column)
-      const tableInfo = this.db.prepare("PRAGMA table_info(todos)").all() as any[];
+      const tableInfo = this.db.prepare("PRAGMA table_info(todos)").all() as TableInfoRow[];
       
       if (tableInfo.length > 0) {
         // Check if listId column exists
-        const hasListId = tableInfo.some((column: any) => column.name === 'listId');
+        const hasListId = tableInfo.some((column: TableInfoRow) => column.name === 'listId');
         
         if (!hasListId) {
           console.error('Migrating from old schema to new schema...');
@@ -161,7 +171,7 @@ class DatabaseService {
           console.error(`Migration completed. Created default list with ID: ${defaultListId}`);
         }
       }
-    } catch (error) {
+    } catch {
       // If there's any error during migration, it's likely that the tables don't exist yet
       // which is fine for new installations
     }
