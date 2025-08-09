@@ -21,11 +21,20 @@ import {
 
 /**
  * Data structure for individual todo list JSON file
+ * Simplified to assume single todo list per file
  */
 interface TodoListData {
-  todoList: TodoList;
-  todos: Todo[];
-  version: string;
+  id: string;
+  todos: StoredTodo[];
+}
+
+/**
+ * Todo data stored in JSON (without redundant listId)
+ */
+interface StoredTodo {
+  seqno: number;
+  title: string;
+  status: "pending" | "done" | "canceled";
 }
 
 /**
@@ -98,7 +107,7 @@ export class JsonFileDataStore implements DataStore {
         try {
           const content = await fs.readFile(filePath, 'utf-8');
           const data: TodoListData = JSON.parse(content);
-          this.todoListCache.set(listId, data.todoList);
+          this.todoListCache.set(listId, { id: data.id });
         } catch (error) {
           // Skip invalid files
           console.error(`Failed to load ${file}: ${error}`);
@@ -185,14 +194,19 @@ export class JsonFileDataStore implements DataStore {
   }
 
   /**
-   * Save a todo list and its todos to a separate JSON file
+   * Save todos to a JSON file
    */
   private async saveTodoListData(listId: string, todoList: TodoList, todos: Todo[]): Promise<void> {
     const filePath = this.getTodoListFilePath(listId);
     const data: TodoListData = {
-      todoList,
-      todos: todos.sort((a, b) => a.seqno - b.seqno),
-      version: '2.0.0'
+      id: listId,
+      todos: todos
+        .sort((a, b) => a.seqno - b.seqno)
+        .map(todo => ({
+          seqno: todo.seqno,
+          title: todo.title,
+          status: todo.status
+        }))
     };
     
     try {
@@ -229,6 +243,16 @@ export class JsonFileDataStore implements DataStore {
       }
       throw error;
     }
+  }
+
+  /**
+   * Convert StoredTodo[] to Todo[] by adding listId
+   */
+  private convertStoredTodosToTodos(storedTodos: StoredTodo[], listId: string): Todo[] {
+    return storedTodos.map(storedTodo => ({
+      ...storedTodo,
+      listId
+    }));
   }
 
   // TodoList operations
@@ -306,7 +330,7 @@ export class JsonFileDataStore implements DataStore {
       
       // Load existing todos for this list
       const data = await this.loadTodoListData(todo.listId);
-      const todos = data?.todos || [];
+      const todos = data?.todos ? this.convertStoredTodosToTodos(data.todos, todo.listId) : [];
       
       // Check for duplicate (listId, seqno)
       if (todos.some(t => t.seqno === todo.seqno)) {
@@ -326,7 +350,9 @@ export class JsonFileDataStore implements DataStore {
   async getTodo(listId: string, seqno: number): Promise<Todo | undefined> {
     return this.operationMutex.runExclusive(async () => {
       const data = await this.loadTodoListData(listId);
-      return data?.todos.find(todo => todo.seqno === seqno);
+      if (!data?.todos) return undefined;
+      const todos = this.convertStoredTodosToTodos(data.todos, listId);
+      return todos.find(todo => todo.seqno === seqno);
     });
   }
 
@@ -337,7 +363,8 @@ export class JsonFileDataStore implements DataStore {
       for (const listId of this.todoListCache.keys()) {
         const data = await this.loadTodoListData(listId);
         if (data?.todos) {
-          allTodos.push(...data.todos);
+          const todos = this.convertStoredTodosToTodos(data.todos, listId);
+          allTodos.push(...todos);
         }
       }
       
@@ -352,7 +379,9 @@ export class JsonFileDataStore implements DataStore {
   async getTodosByListId(listId: string): Promise<Todo[]> {
     return this.operationMutex.runExclusive(async () => {
       const data = await this.loadTodoListData(listId);
-      return data?.todos.sort((a, b) => a.seqno - b.seqno) || [];
+      if (!data?.todos) return [];
+      const todos = this.convertStoredTodosToTodos(data.todos, listId);
+      return todos.sort((a, b) => a.seqno - b.seqno);
     });
   }
 
@@ -365,16 +394,16 @@ export class JsonFileDataStore implements DataStore {
       if (index === -1) return undefined;
 
       const existing = data.todos[index];
-      const updated = {
+      const updated: StoredTodo = {
         ...existing,
         ...updates,
-        listId: existing.listId,
         seqno: existing.seqno,
       };
 
       data.todos[index] = updated;
-      await this.saveTodoListData(listId, this.todoListCache.get(listId)!, data.todos);
-      return updated;
+      const todos = this.convertStoredTodosToTodos(data.todos, listId);
+      await this.saveTodoListData(listId, this.todoListCache.get(listId)!, todos);
+      return todos.find(t => t.seqno === seqno)!;
     });
   }
 
@@ -388,7 +417,8 @@ export class JsonFileDataStore implements DataStore {
       
       const wasDeleted = data.todos.length < initialLength;
       if (wasDeleted) {
-        await this.saveTodoListData(listId, this.todoListCache.get(listId)!, data.todos);
+        const todos = this.convertStoredTodosToTodos(data.todos, listId);
+        await this.saveTodoListData(listId, this.todoListCache.get(listId)!, todos);
       }
       return wasDeleted;
     });
@@ -404,7 +434,8 @@ export class JsonFileDataStore implements DataStore {
       for (const listId of this.todoListCache.keys()) {
         const data = await this.loadTodoListData(listId);
         if (data?.todos) {
-          const matches = data.todos.filter(todo => 
+          const todos = this.convertStoredTodosToTodos(data.todos, listId);
+          const matches = todos.filter(todo => 
             todo.title.toLowerCase().includes(searchTerm)
           );
           matchingTodos.push(...matches);

@@ -82,15 +82,38 @@ The system uses a simplified, efficient data model:
 
 #### TodoList
 - `id` (UUID): Primary key
-- `createdAt` (ISO string): Creation timestamp
 
 ### Storage Implementations
 
 #### JSON File Store (`JsonFileDataStore.ts`)
-- **File Structure**: Single JSON file with nested objects
+- **File Structure**: Separate JSON files per todo list with simplified schema
 - **Atomicity**: Uses temp files and atomic moves
 - **Performance**: Good for small datasets, human-readable
 - **Use Case**: Development, small personal todo lists
+
+**JSON File Format:**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "todos": [
+    {
+      "seqno": 1,
+      "title": "Prepare presentation",
+      "status": "pending"
+    },
+    {
+      "seqno": 2,
+      "title": "Review budget proposal", 
+      "status": "done"
+    }
+  ]
+}
+```
+
+**Key Features:**
+- No redundant `listId` in individual todos (file name represents the list)
+- No version field (simplified schema)
+- Minimal, clean structure optimized for readability
 
 #### SQLite Store (`SqliteDataStore.ts`)
 - **Schema**: Normalized tables with foreign key constraints
