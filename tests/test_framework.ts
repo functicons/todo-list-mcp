@@ -93,8 +93,9 @@ export class TodoAssertions {
    */
   static assertTodoList(actual: unknown, _expected: Partial<TodoList>) {
     assert.ok(actual, 'TodoList should exist');
-    assert.equal(typeof actual.id, 'string', 'TodoList should have string id');
-    assert.ok(actual.id.length > 0, 'TodoList id should not be empty');
+    const actualList = actual as TodoList;
+    assert.equal(typeof actualList.id, 'string', 'TodoList should have string id');
+    assert.ok(actualList.id.length > 0, 'TodoList id should not be empty');
     
     // TodoList now only has id field
   }
@@ -104,22 +105,23 @@ export class TodoAssertions {
    */
   static assertTodo(actual: unknown, expected: Partial<Todo>) {
     assert.ok(actual, 'Todo should exist');
-    assert.equal(typeof actual.listId, 'string', 'Todo should have string listId');
-    assert.ok(actual.listId.length > 0, 'Todo listId should not be empty');
-    assert.equal(typeof actual.seqno, 'number', 'Todo should have number seqno');
-    assert.ok(actual.seqno > 0, 'Todo seqno should be a positive integer');
+    const actualTodo = actual as Todo;
+    assert.equal(typeof actualTodo.listId, 'string', 'Todo should have string listId');
+    assert.ok(actualTodo.listId.length > 0, 'Todo listId should not be empty');
+    assert.equal(typeof actualTodo.seqno, 'number', 'Todo should have number seqno');
+    assert.ok(actualTodo.seqno > 0, 'Todo seqno should be a positive integer');
 
     if (expected.title) {
-      assert.equal(actual.title, expected.title, 'Todo title should match');
+      assert.equal(actualTodo.title, expected.title, 'Todo title should match');
     }
     if (expected.listId) {
-      assert.equal(actual.listId, expected.listId, 'Todo listId should match');
+      assert.equal(actualTodo.listId, expected.listId, 'Todo listId should match');
     }
     if (expected.seqno) {
-      assert.equal(actual.seqno, expected.seqno, 'Todo seqno should match');
+      assert.equal(actualTodo.seqno, expected.seqno, 'Todo seqno should match');
     }
     
-    assert.equal(typeof actual.status, 'string', 'Todo should have string status');
+    assert.equal(typeof actualTodo.status, 'string', 'Todo should have string status');
     
     // Todo now only has listId, seqno, title, and status
   }

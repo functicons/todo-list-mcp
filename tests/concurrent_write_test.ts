@@ -13,7 +13,7 @@ const TEST_FILE = path.join(TEST_DIR, 'test.json');
 async function cleanup() {
   try {
     await fs.rm(TEST_DIR, { recursive: true, force: true });
-  } catch (error) {
+  } catch {
     // Ignore cleanup errors
   }
 }
@@ -52,7 +52,7 @@ export async function runConcurrentWriteTest() {
   console.log('Test 1: Concurrent updates to same list');
   console.log('----------------------------------------');
   
-  const updatePromises = initialTodos.map(async (todo, index) => {
+  const updatePromises = initialTodos.map(async (todo, _index) => {
     const startTime = Date.now();
     try {
       await store.updateTodo(todo.listId, todo.seqno, {

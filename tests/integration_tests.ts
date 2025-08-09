@@ -8,9 +8,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TestUtils, TodoAssertions, runDataStoreTests } from './test_framework.js';
 import {
-  ConstraintViolationException,
-  DataValidationException,
-  FileOperationException
+  ConstraintViolationException
 } from '../src/exceptions/DataStoreExceptions.js';
 
 /**
@@ -175,7 +173,7 @@ async function runAllTests() {
         ];
         
         // All operations should complete without race conditions
-        const results = await Promise.all(operations);
+        await Promise.all(operations);
         
         // Verify final state
         const finalTodos = await store.getTodosByListId(todoList.id);

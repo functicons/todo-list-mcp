@@ -8,7 +8,7 @@
 import Database from 'better-sqlite3';
 import { dirname, join, basename } from 'path';
 import { promises as fs } from 'fs';
-import { Todo } from '../models/Todo.js';
+import { Todo, TodoStatus } from '../models/Todo.js';
 import { TodoList } from '../models/TodoList.js';
 
 // Database row types
@@ -20,7 +20,7 @@ interface TodoRow {
   listId: string;
   seqno: number;
   title: string;
-  status: string;
+  status: TodoStatus;
 }
 
 interface TableInfoRow {
@@ -201,7 +201,7 @@ export class SqliteDataStore implements DataStore {
       throw new DatabaseOperationException(
         `Failed to create TodoList: ${sqliteError.message || 'Unknown error'}`,
         'INSERT',
-        error
+        error instanceof Error ? error : undefined
       );
     }
   }
@@ -259,7 +259,7 @@ export class SqliteDataStore implements DataStore {
       throw new DatabaseOperationException(
         `Failed to create Todo: ${sqliteError.message || 'Unknown error'}`,
         'INSERT',
-        error
+        error instanceof Error ? error : undefined
       );
     }
   }

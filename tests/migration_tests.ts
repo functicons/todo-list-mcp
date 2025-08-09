@@ -88,7 +88,7 @@ export async function runMigrationTests(): Promise<void> {
         // Cleanup
         try {
           await fs.unlink(dbPath);
-        } catch (error) {
+        } catch {
           // Ignore cleanup errors
         }
       }
@@ -131,7 +131,7 @@ export async function runMigrationTests(): Promise<void> {
       } finally {
         try {
           await fs.unlink(dbPath);
-        } catch (error) {
+        } catch {
           // Ignore cleanup errors
         }
       }
@@ -167,7 +167,7 @@ export async function runMigrationTests(): Promise<void> {
       } finally {
         try {
           await fs.unlink(dbPath);
-        } catch (error) {
+        } catch {
           // Ignore cleanup errors
         }
       }

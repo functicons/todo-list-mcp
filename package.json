@@ -29,6 +29,9 @@
   "author": "",
   "license": "ISC",
   "description": "Todo list MCP server",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.1",
     "async-mutex": "^0.5.0",
