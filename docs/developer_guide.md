@@ -35,9 +35,12 @@ todo-list-mcp/
 │   ├── interfaces/             # Type definitions
 │   │   └── DataStore.ts        # Data store interface contract
 │   ├── utils/                  # Utility functions
-│   │   └── formatters.ts       # Response formatting helpers
+│   │   ├── formatters.ts       # JSON response formatting helpers
+│   │   └── apiLogger.ts        # API request/response logging utility
 │   └── exceptions/             # Custom exceptions
 │       └── DataStoreExceptions.ts
+├── logs/                       # API logging output (gitignored)
+│   └── api.log                 # Request/response log file
 ├── tests/                      # Test suite
 │   ├── run_tests.ts           # Test runner
 │   ├── integration_tests.ts   # Integration tests
@@ -139,21 +142,119 @@ Each MCP tool follows a consistent pattern:
 1. **Registration**: Define name, description, and parameter schema
 2. **Validation**: Use Zod schemas for input validation
 3. **Execution**: Safe execution with error handling
-4. **Formatting**: Consistent response formatting for AI consumption
+4. **JSON Formatting**: Structured JSON response formatting
 
 ```typescript
 server.tool(
   "tool-name",                    // Unique identifier
   "Tool description for AI",      // Human-readable description
   { /* Zod parameter schema */ }, // Input validation
-  async (params) => {             // Implementation
+  withLogging("tool-name", async (params) => {  // With request/response logging
     const result = await safeExecute(/* operation */, "Error context");
     return result instanceof Error 
       ? createErrorResponse(result.message)
-      : createSuccessResponse(formatOutput(result));
-  }
+      : createSuccessResponse(formatOutput(result), "Success message");
+  })
 );
 ```
+
+### JSON Response Format
+
+All API responses follow a consistent JSON structure:
+
+**Success Response Structure:**
+```typescript
+{
+  success: true,
+  message: string,        // Human-readable success message
+  data: object | array    // Tool-specific structured data
+}
+```
+
+**Error Response Structure:**
+```typescript
+{
+  success: false,
+  error: string          // Clear error description
+}
+```
+
+**Example Tool Responses:**
+
+**Create Todo Response:**
+```json
+{
+  "success": true,
+  "message": "Todo created successfully",
+  "data": {
+    "listId": "550e8400-e29b-41d4-a716-446655440000",
+    "seqno": 1,
+    "title": "Prepare presentation",
+    "status": "pending"
+  }
+}
+```
+
+**Get Todos Response:**
+```json
+{
+  "success": true,
+  "message": "Todos retrieved successfully",
+  "data": {
+    "listId": "550e8400-e29b-41d4-a716-446655440000",
+    "todos": [
+      {
+        "seqno": 1,
+        "title": "Prepare presentation",
+        "status": "pending"
+      }
+    ],
+    "count": 1
+  }
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "error": "Todo with seqno 999 in list 550e8400-e29b-41d4-a716-446655440000 not found"
+}
+```
+
+### API Request/Response Logging
+
+The server includes comprehensive request/response logging functionality:
+
+**Log Location:** `logs/api.log` (automatically created, gitignored)
+
+**Log Format:**
+```
+HH:MM:SS ✓/✗ tool-name (duration) | parameters → response
+```
+
+**Example Log Entries:**
+```
+17:28:15 ✓ create-todo-list (1ms) | {} → { "success": true, "message": "Todo list created successfully", "data": { "id": "ee3fea57-..." } }
+17:28:16 ✓ create-todo (2ms) | {"listId":"ee3fea57-8ad4-436c-af21-29e743475cef","title":"Learn MCP"} → { "success": true, "message": "Todo created successfully", "data": { "listId": "ee3fea57-...", "seqno": 1, "title": "Learn MCP", "status": "pending" } }
+17:28:17 ✗ update-todo (1ms) | {"listId":"invalid-id","seqno":1,"status":"done"} → ERROR: Invalid TodoList ID
+```
+
+**Logging Features:**
+- **Timestamp**: Precise timing for each request
+- **Success Indicators**: ✓ for success, ✗ for errors
+- **Performance Metrics**: Duration in milliseconds
+- **Parameter Tracking**: Complete input parameter logging
+- **Response Logging**: Truncated response content (100 chars max)
+- **Compact Format**: Single-line entries for easy scanning
+
+**Implementation:**
+The logging is implemented through the `withLogging()` wrapper function that:
+1. Records request start time
+2. Executes the tool handler
+3. Measures execution duration
+4. Logs success/failure with parameters and response
+5. Handles errors gracefully without disrupting the API
 
 ## Testing Strategy
 

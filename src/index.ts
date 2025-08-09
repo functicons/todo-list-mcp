@@ -168,7 +168,7 @@ server.tool(
       return createErrorResponse(result.message);
     }
 
-    return createSuccessResponse(`✅ Todo Created:\n\n${result}`);
+    return createSuccessResponse(result, "Todo created successfully");
   })
 );
 
@@ -198,7 +198,7 @@ server.tool(
         }
         // If status filter is provided, check if todo matches
         if (status !== undefined && todo.status !== status) {
-          return "No todos found matching the specified criteria.";
+          return { todos: [], count: 0 };
         }
         return formatTodo(todo);
       }
@@ -211,10 +211,6 @@ server.tool(
         todos = todos.filter(todo => todo.status === status);
       }
 
-      if (todos.length === 0) {
-        return "No todos found matching the specified criteria.";
-      }
-
       return formatTodoList(todos);
     }, "Failed to get todos in list");
 
@@ -222,7 +218,7 @@ server.tool(
       return createErrorResponse(result.message);
     }
 
-    return createSuccessResponse(result);
+    return createSuccessResponse(result, "Todos retrieved successfully");
   })
 );
 
@@ -259,7 +255,7 @@ server.tool(
       return createErrorResponse(result.message);
     }
 
-    return createSuccessResponse(`✅ Todo Updated:\n\n${result}`);
+    return createSuccessResponse(result, "Todo updated successfully");
   })
 );
 
@@ -288,7 +284,7 @@ server.tool(
       return createErrorResponse(result.message);
     }
 
-    return createSuccessResponse(`✅ Todo List Created:\n\n${result}`);
+    return createSuccessResponse(result, "Todo list created successfully");
   })
 );
 

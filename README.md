@@ -171,11 +171,93 @@ The server provides these tools for AI clients:
 
 ### Response Format
 
-All tools return structured responses with:
-- **Success**: Formatted text with todo/list information
-- **Error**: Clear error message explaining what went wrong
+All tools return structured JSON responses:
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "Operation completed successfully",
+  "data": {
+    // Tool-specific data (todo, list, etc.)
+  }
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "error": "Clear error message explaining what went wrong"
+}
+```
 
 All UUIDs are validated, and required fields are enforced. The server uses TypeScript with Zod schemas for runtime validation.
+
+### Example API Responses
+
+#### Create Todo List
+```json
+{
+  "success": true,
+  "message": "Todo list created successfully",
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+#### Create Todo
+```json
+{
+  "success": true,
+  "message": "Todo created successfully", 
+  "data": {
+    "listId": "550e8400-e29b-41d4-a716-446655440000",
+    "seqno": 1,
+    "title": "Prepare quarterly presentation",
+    "status": "pending"
+  }
+}
+```
+
+#### Get Todos (List)
+```json
+{
+  "success": true,
+  "message": "Todos retrieved successfully",
+  "data": {
+    "listId": "550e8400-e29b-41d4-a716-446655440000",
+    "todos": [
+      {
+        "seqno": 1,
+        "title": "Prepare quarterly presentation",
+        "status": "pending"
+      },
+      {
+        "seqno": 2,
+        "title": "Review budget proposal",
+        "status": "done"
+      }
+    ],
+    "count": 2
+  }
+}
+```
+
+#### Update Todo
+```json
+{
+  "success": true,
+  "message": "Todo updated successfully",
+  "data": {
+    "listId": "550e8400-e29b-41d4-a716-446655440000",
+    "seqno": 1,
+    "title": "Prepare quarterly presentation",
+    "status": "done"
+  }
+}
+```
 
 ## Data Storage
 

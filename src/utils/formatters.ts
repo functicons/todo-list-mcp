@@ -15,79 +15,79 @@ import { Todo } from "../models/Todo.js";
 import { TodoList } from "../models/TodoList.js";
 
 /**
- * Format a todo item to a readable string representation
+ * Format a todo item to JSON representation
  * 
- * This formatter converts a Todo object into a markdown-formatted string
- * with clear visual indicators for completion status (emojis).
- * 
- * WHY USE MARKDOWN?
- * - Provides structured, readable output
- * - Works well with LLMs which understand markdown syntax
- * - Allows rich formatting like headers, lists, and emphasis
- * - Can be displayed directly in many UI contexts
+ * This formatter converts a Todo object into a structured JSON object
+ * for API responses.
  * 
  * @param todo The Todo object to format
- * @returns A markdown-formatted string representation
+ * @returns A JSON object representation
  */
-export function formatTodo(todo: Todo): string {
-  const checkbox = todo.status === 'done' ? '[x]' : (todo.status === 'canceled' ? '[-]' : '[ ]');
-  return `TODO List (${todo.listId}):
-- ${checkbox} ${todo.seqno}. ${todo.title}`;
+export function formatTodo(todo: Todo): object {
+  return {
+    listId: todo.listId,
+    seqno: todo.seqno,
+    title: todo.title,
+    status: todo.status
+  };
 }
 
 /**
- * Format a list of todos to a readable string representation
+ * Format a list of todos to JSON representation
  * 
- * This formatter takes an array of Todo objects and creates a complete
- * markdown document with a title and formatted entries.
+ * This formatter takes an array of Todo objects and creates a structured
+ * JSON response.
  * 
  * @param todos Array of Todo objects to format
- * @returns A markdown-formatted string with the complete list
+ * @returns A JSON object with the todo list
  */
-export function formatTodoList(todos: Todo[]): string {
+export function formatTodoList(todos: Todo[]): object {
   if (todos.length === 0) {
-    return "No todos found.";
+    return { todos: [], count: 0 };
   }
 
   const listId = todos[0].listId;
-  const todoItems = todos.map(todo => {
-    const checkbox = todo.status === 'done' ? '[x]' : (todo.status === 'canceled' ? '[-]' : '[ ]');
-    return `- ${checkbox} ${todo.seqno}. ${todo.title}`;
-  }).join('\n');
-  
-  return `TODO List (${listId}):\n${todoItems}`;
+  return {
+    listId,
+    todos: todos.map(todo => ({
+      seqno: todo.seqno,
+      title: todo.title,
+      status: todo.status
+    })),
+    count: todos.length
+  };
 }
 
 /**
- * Create success response for MCP tool calls
+ * Create success response for MCP tool calls with JSON data
  * 
- * This utility formats successful responses according to the MCP protocol.
- * It wraps the message in the expected content structure.
+ * This utility formats successful responses according to the MCP protocol
+ * but returns JSON data instead of text messages.
  * 
- * WHY THIS FORMAT?
- * - Follows the MCP protocol's expected response structure
- * - Allows the message to be properly displayed by MCP clients
- * - Clearly indicates success status
- * 
- * @param message The success message to include
+ * @param data The JSON data to include
+ * @param message Optional success message
  * @returns A properly formatted MCP response object
  */
-export function createSuccessResponse(message: string) {
+export function createSuccessResponse(data: any, message?: string) {
   return {
     content: [
       {
         type: "text" as const,
-        text: message,
+        text: JSON.stringify({
+          success: true,
+          message: message || "Operation completed successfully",
+          data: data
+        }, null, 2),
       },
     ],
   };
 }
 
 /**
- * Create error response for MCP tool calls
+ * Create error response for MCP tool calls with JSON format
  * 
- * This utility formats error responses according to the MCP protocol.
- * It includes the isError flag to indicate failure.
+ * This utility formats error responses according to the MCP protocol
+ * with structured JSON error information.
  * 
  * @param message The error message to include
  * @returns A properly formatted MCP error response object
@@ -97,7 +97,10 @@ export function createErrorResponse(message: string) {
     content: [
       {
         type: "text" as const,
-        text: message,
+        text: JSON.stringify({
+          success: false,
+          error: message
+        }, null, 2),
       },
     ],
     isError: true,
@@ -105,28 +108,26 @@ export function createErrorResponse(message: string) {
 }
 
 /**
- * Format a todo list to a readable string representation
+ * Format a todo list to JSON representation
  * 
  * @param todoList The TodoList object to format
- * @returns A markdown-formatted string representation
+ * @returns A JSON object representation
  */
-export function formatTodoListInfo(todoList: TodoList): string {
-  return `
-ID: ${todoList.id}
-  `.trim();
+export function formatTodoListInfo(todoList: TodoList): object {
+  return {
+    id: todoList.id
+  };
 }
 
 /**
- * Format a list of todo lists to a readable string representation
+ * Format a list of todo lists to JSON representation
  * 
  * @param todoLists Array of TodoList objects to format
- * @returns A markdown-formatted string with the complete list
+ * @returns A JSON object with the todo lists
  */
-export function formatTodoListCollection(todoLists: TodoList[]): string {
-  if (todoLists.length === 0) {
-    return "No todo lists found.";
-  }
-
-  const todoListItems = todoLists.map(formatTodoListInfo).join('\n\n---\n\n');
-  return `# Todo Lists (${todoLists.length} lists)\n\n${todoListItems}`;
+export function formatTodoListCollection(todoLists: TodoList[]): object {
+  return {
+    todoLists: todoLists.map(todoList => ({ id: todoList.id })),
+    count: todoLists.length
+  };
 } 
