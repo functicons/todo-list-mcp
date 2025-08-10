@@ -240,7 +240,7 @@ npx mcp-inspector node dist/index.js
 │ ✓ create-todo   │ Tool: create-todo         │
 │ ✓ get-todos     │ Parameters:               │
 │ ✓ update-todo   │ ┌─────────────────────┐   │
-│ ✓ create-todo-  │ │ listId: "uuid-123" │   │
+│ ✓ create-todo-  │ │ listId: "uuid-123"  │   │
 │   list          │ │ title: "Learn MCP"  │   │
 │                 │ └─────────────────────┘   │
 │                 │ [Call Tool]               │
