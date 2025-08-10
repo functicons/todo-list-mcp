@@ -44,6 +44,7 @@ import { dataService } from "./services/DataService.js";
 import { createSuccessResponse, createErrorResponse, formatTodo, formatTodoList, formatTodoListInfo } from "./utils/formatters.js";
 import { config } from "./config.js";
 import { apiLogger } from "./utils/apiLogger.js";
+import { MCPToolResponse, ToolParams, MCPHandler } from "./types/mcp.js";
 
 /**
  * Create the MCP server
@@ -90,22 +91,21 @@ async function safeExecute<T>(operation: () => T | Promise<T>, errorMessage: str
 /**
  * Wrapper function to add logging to tool handlers
  */
-function withLogging<T extends Record<string, any>>(
+function withLogging<T extends ToolParams>(
   toolName: string,
-  handler: (params: T) => Promise<any>
-) {
-  return async (params: T) => {
+  handler: MCPHandler<T, MCPToolResponse>
+): MCPHandler<T, MCPToolResponse> {
+  return async (params: T): Promise<MCPToolResponse> => {
     const startTime = Date.now();
     
     try {
       const result = await handler(params);
       const duration = Date.now() - startTime;
-      const success = !result.content?.includes('Error:');
+      const success = !result.isError;
       
-      const responseText = typeof result === 'string' ? result : 
-                       (result.content && Array.isArray(result.content) ? 
-                        result.content.map((c: any) => c.text || c).join(' ') : 
-                        result.content || JSON.stringify(result));
+      const responseText = result.content
+        .map(item => item.type === 'text' ? item.text : '[image]')
+        .join(' ');
       
       await apiLogger.logToolCall(
         toolName,

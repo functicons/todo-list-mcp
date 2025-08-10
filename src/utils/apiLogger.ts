@@ -1,10 +1,11 @@
 import { promises as fs } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { ToolParams } from '../types/mcp.js';
 
 interface LogEntry {
   timestamp: string;
   tool: string;
-  params: Record<string, unknown>;
+  params: ToolParams;
   success: boolean;
   response?: string;
   error?: string;
@@ -13,9 +14,23 @@ interface LogEntry {
 
 class ApiLogger {
   private logPath: string;
+  private logDirCreated: boolean = false;
 
   constructor() {
     this.logPath = join(process.cwd(), 'logs', 'api.log');
+  }
+
+  private async ensureLogDirectory(): Promise<void> {
+    if (!this.logDirCreated) {
+      try {
+        const logDir = dirname(this.logPath);
+        await fs.mkdir(logDir, { recursive: true });
+        this.logDirCreated = true;
+      } catch {
+        // Directory might already exist, that's fine
+        this.logDirCreated = true;
+      }
+    }
   }
 
   private formatTimestamp(): string {
@@ -38,8 +53,11 @@ class ApiLogger {
     return `${timestamp} ${status} ${entry.tool} (${entry.duration}ms) | ${paramsStr} → ${responseStr}`;
   }
 
-  async logToolCall(tool: string, params: Record<string, unknown>, success: boolean, response?: string, error?: string, duration?: number): Promise<void> {
+  async logToolCall(tool: string, params: ToolParams, success: boolean, response?: string, error?: string, duration?: number): Promise<void> {
     try {
+      // Ensure the log directory exists before writing
+      await this.ensureLogDirectory();
+      
       const entry: LogEntry = {
         timestamp: this.formatTimestamp(),
         tool,
@@ -53,7 +71,11 @@ class ApiLogger {
       const logLine = this.formatLogEntry(entry) + '\n';
       await fs.appendFile(this.logPath, logLine, 'utf8');
     } catch (err) {
-      console.error('Failed to write to log file:', err);
+      // Silently fail - logging should not break the application
+      // Only log to console in development mode
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to write to log file:', err);
+      }
     }
   }
 }

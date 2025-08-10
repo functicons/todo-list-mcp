@@ -82,13 +82,18 @@ export class ResourceNotFoundException extends DataStoreException {
 }
 
 /**
+ * Type for validation error values (commonly primitive types)
+ */
+export type ValidationErrorValue = string | number | boolean | null | undefined | Array<string | number | boolean>;
+
+/**
  * Thrown when there's a data validation error
  */
 export class DataValidationException extends DataStoreException {
   constructor(
     message: string,
     public readonly field?: string,
-    public readonly value?: unknown
+    public readonly value?: ValidationErrorValue
   ) {
     super(message, 'DATA_VALIDATION_FAILED');
   }

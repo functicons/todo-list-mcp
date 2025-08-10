@@ -13,6 +13,17 @@
  */
 import { Todo } from "../models/Todo.js";
 import { TodoList } from "../models/TodoList.js";
+import { MCPToolResponse, SuccessResponseData, ErrorResponseData } from "../types/mcp.js";
+
+/**
+ * Todo formatted for API response
+ */
+export interface FormattedTodo {
+  listId: string;
+  seqno: number;
+  title: string;
+  status: string;
+}
 
 /**
  * Format a todo item to JSON representation
@@ -23,13 +34,22 @@ import { TodoList } from "../models/TodoList.js";
  * @param todo The Todo object to format
  * @returns A JSON object representation
  */
-export function formatTodo(todo: Todo): object {
+export function formatTodo(todo: Todo): FormattedTodo {
   return {
     listId: todo.listId,
     seqno: todo.seqno,
     title: todo.title,
     status: todo.status
   };
+}
+
+/**
+ * Todo list formatted for API response
+ */
+export interface FormattedTodoListCollection {
+  listId?: string;
+  todos: Array<Omit<FormattedTodo, 'listId'>>;
+  count: number;
 }
 
 /**
@@ -41,7 +61,7 @@ export function formatTodo(todo: Todo): object {
  * @param todos Array of Todo objects to format
  * @returns A JSON object with the todo list
  */
-export function formatTodoList(todos: Todo[]): object {
+export function formatTodoList(todos: Todo[]): FormattedTodoListCollection {
   if (todos.length === 0) {
     return { todos: [], count: 0 };
   }
@@ -68,16 +88,18 @@ export function formatTodoList(todos: Todo[]): object {
  * @param message Optional success message
  * @returns A properly formatted MCP response object
  */
-export function createSuccessResponse(data: unknown, message?: string) {
+export function createSuccessResponse<T = unknown>(data: T, message?: string): MCPToolResponse {
+  const responseData: SuccessResponseData<T> = {
+    success: true,
+    message: message || "Operation completed successfully",
+    data: data
+  };
+  
   return {
     content: [
       {
-        type: "text" as const,
-        text: JSON.stringify({
-          success: true,
-          message: message || "Operation completed successfully",
-          data: data
-        }, null, 2),
+        type: "text",
+        text: JSON.stringify(responseData, null, 2),
       },
     ],
   };
@@ -92,19 +114,28 @@ export function createSuccessResponse(data: unknown, message?: string) {
  * @param message The error message to include
  * @returns A properly formatted MCP error response object
  */
-export function createErrorResponse(message: string) {
+export function createErrorResponse(message: string): MCPToolResponse {
+  const responseData: ErrorResponseData = {
+    success: false,
+    error: message
+  };
+  
   return {
     content: [
       {
-        type: "text" as const,
-        text: JSON.stringify({
-          success: false,
-          error: message
-        }, null, 2),
+        type: "text",
+        text: JSON.stringify(responseData, null, 2),
       },
     ],
     isError: true,
   };
+}
+
+/**
+ * TodoList info formatted for API response
+ */
+export interface FormattedTodoListInfo {
+  id: string;
 }
 
 /**
@@ -113,10 +144,18 @@ export function createErrorResponse(message: string) {
  * @param todoList The TodoList object to format
  * @returns A JSON object representation
  */
-export function formatTodoListInfo(todoList: TodoList): object {
+export function formatTodoListInfo(todoList: TodoList): FormattedTodoListInfo {
   return {
     id: todoList.id
   };
+}
+
+/**
+ * Collection of TodoLists formatted for API response
+ */
+export interface FormattedTodoListsCollection {
+  todoLists: FormattedTodoListInfo[];
+  count: number;
 }
 
 /**
@@ -125,7 +164,7 @@ export function formatTodoListInfo(todoList: TodoList): object {
  * @param todoLists Array of TodoList objects to format
  * @returns A JSON object with the todo lists
  */
-export function formatTodoListCollection(todoLists: TodoList[]): object {
+export function formatTodoListCollection(todoLists: TodoList[]): FormattedTodoListsCollection {
   return {
     todoLists: todoLists.map(todoList => ({ id: todoList.id })),
     count: todoLists.length
