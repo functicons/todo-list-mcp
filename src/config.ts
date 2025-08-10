@@ -44,8 +44,8 @@ const DEFAULT_STORE_TYPE: DataStoreType = 'json'; // JSON is default for simplic
 export const config = {
   dataStore: {
     // Allow overriding through environment variables
-    type: (process.env.TODO_STORE_TYPE as DataStoreType) || DEFAULT_STORE_TYPE,
-    folder: process.env.TODO_DATA_FOLDER || DEFAULT_DATA_FOLDER,
+    type: (process.env.TODO_DATA_STORE as DataStoreType) || DEFAULT_STORE_TYPE,
+    folder: process.env.TODO_DATA_PATH || DEFAULT_DATA_FOLDER,
     
     /**
      * Full path to the data file

@@ -65,7 +65,7 @@ Add this configuration to your settings file:
 The server supports two storage backends:
 
 **JSON File Storage (Default):**
-- **Location**: `~/.todo-list-mcp/todos.json`
+- **Location**: `~/.todo-list-mcp/data/json/`
 - **Format**: Human-readable JSON format
 
 ```json
@@ -263,7 +263,7 @@ All UUIDs are validated, and required fields are enforced. The server uses TypeS
 
 Your todo data is stored locally:
 
-- **JSON format**: `~/.todo-list-mcp/todos.json` (human-readable)
+- **JSON format**: `~/.todo-list-mcp/data/json/` (human-readable)
 - **SQLite format**: `~/.todo-list-mcp/todos.sqlite` (better for large datasets)
 
 ## Privacy & Security
