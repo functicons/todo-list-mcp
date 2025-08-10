@@ -48,12 +48,16 @@ export const config = {
     folder: process.env.TODO_DATA_PATH || DEFAULT_DATA_FOLDER,
     
     /**
-     * Full path to the data file
+     * Full path to the data directory
      * 
-     * This getter computes the complete path dynamically,
-     * including the appropriate file extension for the store type.
+     * For JSON store, this returns the base directory where per-list JSON files
+     * will be stored in data/json/ subdirectory.
+     * For SQLite store, this returns the actual database file path.
      */
     get path() {
+      if (this.type === 'json') {
+        return path.join(this.folder, 'data', 'json');
+      }
       const extension = DataStoreFactory.getDefaultExtension(this.type);
       return path.join(this.folder, `todos${extension}`);
     }

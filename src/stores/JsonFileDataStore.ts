@@ -49,10 +49,9 @@ export class JsonFileDataStore implements DataStore {
   private todoListCache: Map<string, TodoList>;
 
   constructor(filePath: string) {
-    // filePath points to the old single JSON file location
-    // We'll use its directory as the base path
-    this.basePath = dirname(filePath);
-    this.jsonDir = path.join(this.basePath, 'data', 'json');
+    // filePath now points directly to the data/json directory
+    this.jsonDir = filePath;
+    this.basePath = dirname(dirname(filePath)); // Go up two levels to get base path
     this.operationMutex = new Mutex();
     this.todoListCache = new Map();
   }
