@@ -15,7 +15,7 @@ A Model Context Protocol (MCP) server that provides todo list management with mu
 
 ```bash
 # Run directly from GitHub repository
-npx github:functicons/todo-list-mcp
+npx -y github:functicons/todo-list-mcp
 ```
 
 ### Option 2: Local Installation
@@ -31,18 +31,31 @@ npm run build
 
 ## Configuration
 
-### Claude Code & Gemini CLI
+### Claude Code
 
-Add this configuration to your settings file:
-- **Claude Code**: `~/.claude/settings.json`
-- **Gemini CLI**: `~/.gemini/settings.json`
+Add the MCP server using the Claude CLI:
+
+```bash
+# Using npx (recommended)
+claude mcp add todo-list -- npx -y github:functicons/todo-list-mcp
+
+# Or for local installation
+claude mcp add todo-list -- node /absolute/path/to/todo-list-mcp/dist/src/index.js
+
+# On Windows (native, not WSL)
+claude mcp add todo-list -- cmd /c npx -y github:functicons/todo-list-mcp
+```
+
+### Gemini CLI
+
+Add this configuration to your settings file: `~/.gemini/settings.json`
 
 ```json
 {
   "mcpServers": {
     "todo-list": {
       "command": "npx",
-      "args": ["github:functicons/todo-list-mcp"]
+      "args": ["-y", "github:functicons/todo-list-mcp"]
     }
   }
 }
@@ -68,12 +81,22 @@ The server supports two storage backends:
 - **Location**: `~/.todo-list-mcp/data/json/`
 - **Format**: Human-readable JSON format
 
+Claude Code:
+```bash
+# JSON is default, so no env needed
+claude mcp add todo-list -- npx -y github:functicons/todo-list-mcp
+
+# Or explicitly set JSON
+claude mcp add todo-list --env TODO_DATA_STORE=json -- npx -y github:functicons/todo-list-mcp
+```
+
+Gemini CLI configuration:
 ```json
 {
   "mcpServers": {
     "todo-list": {
       "command": "npx",
-      "args": ["github:functicons/todo-list-mcp"],
+      "args": ["-y", "github:functicons/todo-list-mcp"],
       "env": {
         "TODO_DATA_STORE": "json"
       }
@@ -86,12 +109,18 @@ The server supports two storage backends:
 - **Location**: `~/.todo-list-mcp/todos.sqlite`
 - **Format**: Binary SQLite database
 
+Claude Code:
+```bash
+claude mcp add todo-list --env TODO_DATA_STORE=sqlite -- npx -y github:functicons/todo-list-mcp
+```
+
+Gemini CLI configuration:
 ```json
 {
   "mcpServers": {
     "todo-list": {
       "command": "npx",
-      "args": ["github:functicons/todo-list-mcp"],
+      "args": ["-y", "github:functicons/todo-list-mcp"],
       "env": {
         "TODO_DATA_STORE": "sqlite"
       }
