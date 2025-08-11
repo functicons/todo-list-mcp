@@ -11,15 +11,6 @@ A Model Context Protocol (MCP) server that provides todo list management with mu
 
 ## Installation
 
-### Option 1: Using npx (Recommended)
-
-```bash
-# Run directly from GitHub repository
-npx -y github:functicons/todo-list-mcp
-```
-
-### Option 2: Local Installation
-
 ```bash
 # Clone the repository
 git clone https://github.com/functicons/todo-list-mcp.git
@@ -33,35 +24,16 @@ npm run build
 
 ### Claude Code
 
-Add the MCP server using the Claude CLI:
+Add the MCP server using the Claude CLI after local installation:
 
 ```bash
-# Using npx (recommended)
-claude mcp add todo-list -- npx -y github:functicons/todo-list-mcp
-
-# Or for local installation
 claude mcp add todo-list -- node /absolute/path/to/todo-list-mcp/dist/src/index.js
-
-# On Windows (native, not WSL)
-claude mcp add todo-list -- cmd /c npx -y github:functicons/todo-list-mcp
 ```
 
 ### Gemini CLI
 
 Add this configuration to your settings file: `~/.gemini/settings.json`
 
-```json
-{
-  "mcpServers": {
-    "todo-list": {
-      "command": "npx",
-      "args": ["-y", "github:functicons/todo-list-mcp"]
-    }
-  }
-}
-```
-
-**Alternative (local installation):**
 ```json
 {
   "mcpServers": {
@@ -84,10 +56,10 @@ The server supports two storage backends:
 Claude Code:
 ```bash
 # JSON is default, so no env needed
-claude mcp add todo-list -- npx -y github:functicons/todo-list-mcp
+claude mcp add todo-list -- node /absolute/path/to/todo-list-mcp/dist/src/index.js
 
 # Or explicitly set JSON
-claude mcp add todo-list --env TODO_DATA_STORE=json -- npx -y github:functicons/todo-list-mcp
+claude mcp add todo-list --env TODO_DATA_STORE=json -- node /absolute/path/to/todo-list-mcp/dist/src/index.js
 ```
 
 Gemini CLI configuration:
@@ -95,8 +67,8 @@ Gemini CLI configuration:
 {
   "mcpServers": {
     "todo-list": {
-      "command": "npx",
-      "args": ["-y", "github:functicons/todo-list-mcp"],
+      "command": "node",
+      "args": ["/absolute/path/to/todo-list-mcp/dist/src/index.js"],
       "env": {
         "TODO_DATA_STORE": "json"
       }
@@ -111,7 +83,7 @@ Gemini CLI configuration:
 
 Claude Code:
 ```bash
-claude mcp add todo-list --env TODO_DATA_STORE=sqlite -- npx -y github:functicons/todo-list-mcp
+claude mcp add todo-list --env TODO_DATA_STORE=sqlite -- node /absolute/path/to/todo-list-mcp/dist/src/index.js
 ```
 
 Gemini CLI configuration:
@@ -119,8 +91,8 @@ Gemini CLI configuration:
 {
   "mcpServers": {
     "todo-list": {
-      "command": "npx",
-      "args": ["-y", "github:functicons/todo-list-mcp"],
+      "command": "node",
+      "args": ["/absolute/path/to/todo-list-mcp/dist/src/index.js"],
       "env": {
         "TODO_DATA_STORE": "sqlite"
       }
