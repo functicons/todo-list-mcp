@@ -10,6 +10,7 @@
   ],
   "type": "module",
   "scripts": {
+    "postinstall": "npm run build",
     "prebuild": "[ -d node_modules ] || npm install",
     "build": "tsc",
     "clean": "rm -rf dist",
@@ -37,6 +38,9 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.1",
+    "@types/better-sqlite3": "^7.6.9",
+    "@types/node": "^20.11.28",
+    "@types/uuid": "^9.0.8",
     "async-mutex": "^0.5.0",
     "better-sqlite3": "^9.4.1",
     "typescript": "^5.3.3",
@@ -45,9 +49,6 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/inspector": "^0.5.1",
-    "@types/better-sqlite3": "^7.6.9",
-    "@types/node": "^20.11.28",
-    "@types/uuid": "^9.0.8",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
     "eslint": "^9.33.0"
